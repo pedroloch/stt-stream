@@ -8,14 +8,12 @@ from .registry import BackendRegistry
 from .mlx_backend import MLXBackend
 from .faster_whisper_backend import FasterWhisperBackend
 from .whisperx_backend import WhisperXBackend
-from .seamless_backend import SeamlessM4TBackend
 from .crisper_backend import CrisperWhisperBackend
 
 # Registrar backends
 BackendRegistry.register("mlx", MLXBackend)
 BackendRegistry.register("faster-whisper", FasterWhisperBackend)
 BackendRegistry.register("whisperx", WhisperXBackend)
-BackendRegistry.register("seamless-m4t", SeamlessM4TBackend)
 BackendRegistry.register("crisper-whisper", CrisperWhisperBackend)
 
 __all__ = [
@@ -23,6 +21,5 @@ __all__ = [
     "MLXBackend",
     "FasterWhisperBackend",
     "WhisperXBackend",
-    "SeamlessM4TBackend",
     "CrisperWhisperBackend",
 ]
