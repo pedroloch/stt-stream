@@ -42,35 +42,38 @@ class FasterWhisperBackend(WhisperBackend):
     Recomendado usar distil-large-v3 para performance 6x melhor.
     """
 
+    # Class-level constant (não cria objeto toda vez)
+    INFO = BackendInfo(
+        name="faster-whisper",
+        supported_platforms={
+            Platform.MACOS_APPLE_SILICON,
+            Platform.MACOS_INTEL,
+            Platform.LINUX_CUDA,
+            Platform.LINUX_CPU,
+            Platform.WINDOWS_CUDA,
+        },
+        capabilities={
+            Capability.TRANSCRIPTION,
+            Capability.WORD_TIMESTAMPS,  # ⭐ Word-level precision
+            Capability.VAD,
+            Capability.STREAMING,
+        },
+        model_sizes={
+            "tiny",
+            "base",
+            "small",
+            "medium",
+            "large",
+            "large-v2",
+            "large-v3",
+            "distil-large-v3",  # ⭐ Recomendado - 6x mais rapido
+        },
+    )
+
     @property
     def info(self) -> BackendInfo:
-        """Retorna metadata e capabilities do Faster-Whisper backend"""
-        return BackendInfo(
-            name="faster-whisper",
-            supported_platforms={
-                Platform.MACOS_APPLE_SILICON,
-                Platform.MACOS_INTEL,
-                Platform.LINUX_CUDA,
-                Platform.LINUX_CPU,
-                Platform.WINDOWS_CUDA,
-            },
-            capabilities={
-                Capability.TRANSCRIPTION,
-                Capability.WORD_TIMESTAMPS,  # ⭐ Word-level precision
-                Capability.VAD,
-                Capability.STREAMING,
-            },
-            model_sizes={
-                "tiny",
-                "base",
-                "small",
-                "medium",
-                "large",
-                "large-v2",
-                "large-v3",
-                "distil-large-v3",  # ⭐ Recomendado - 6x mais rapido
-            },
-        )
+        """Retorna metadata e capabilities do Faster-Whisper backend (cached)"""
+        return self.__class__.INFO
 
     def __init__(
         self,
