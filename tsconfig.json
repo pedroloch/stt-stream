@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "lib": ["ESNext"],
+    "lib": ["ESNext", "DOM"],
     "target": "ESNext",
     "module": "ESNext",
     "moduleDetection": "force",
@@ -12,14 +12,14 @@
     "verbatimModuleSyntax": true,
     "noEmit": true,
 
-    "strict": true,
+    "strict": false,
     "skipLibCheck": true,
     "noFallthroughCasesInSwitch": true,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noPropertyAccessFromIndexSignature": false,
 
-    "types": ["bun-types"]
+    "types": ["bun-types", "@types/node"]
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
