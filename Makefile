@@ -1,4 +1,4 @@
-.PHONY: help install lint lint-fix format format-check type test test-cov check clean dev
+.PHONY: help install lint lint-fix format format-check type test test-cov check clean dev bun-install bun-dev bun-start
 
 help:  ## Show this help message
 	@echo "Available commands:"
@@ -37,5 +37,14 @@ clean:  ## Clean cache and build artifacts
 	find . -type d -name "*.egg-info" -exec rm -rf {} + 2>/dev/null || true
 	rm -rf htmlcov .coverage 2>/dev/null || true
 
-dev:  ## Run development server
+dev:  ## Run development server (Python)
 	poetry run python -m server.main --config server-config.example.yaml
+
+bun-install:  ## Install Bun client dependencies
+	cd sandbox && bun install
+
+bun-dev:  ## Run Bun client in watch mode
+	cd sandbox && bun run dev
+
+bun-start:  ## Run Bun client (production)
+	cd sandbox && bun run start
