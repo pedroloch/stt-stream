@@ -269,3 +269,44 @@ class WhisperXBackend(WhisperBackend):
         self.align_metadata = None
         self.diarize_model = None
         self._initialized = False
+
+    def get_backend_info(self) -> Dict[str, Any]:
+        """
+        Retorna informações sobre o backend WhisperX
+
+        Returns:
+            Dicionário com informações do backend
+        """
+        info_dict = {
+            "name": "WhisperX (Speaker Diarization)",
+            "device": self.device if hasattr(self, 'device') else "cuda",
+            "model": self.model,
+            "language": self.language,
+            "compute_type": self.compute_type if hasattr(self, 'compute_type') else "float16",
+            "initialized": self._initialized,
+            "capabilities": [c.value for c in self.info.capabilities],
+        }
+
+        # Adicionar info de diarization
+        if hasattr(self, 'diarize_model') and self.diarize_model:
+            info_dict["diarization_enabled"] = True
+        else:
+            info_dict["diarization_enabled"] = False
+
+        # Info de alinhamento
+        if hasattr(self, 'align_model') and self.align_model:
+            info_dict["alignment_enabled"] = True
+        else:
+            info_dict["alignment_enabled"] = False
+
+        # Info da GPU se disponível
+        try:
+            import torch
+            if torch.cuda.is_available():
+                info_dict["gpu"] = torch.cuda.get_device_name(0)
+                info_dict["gpu_memory_total"] = f"{torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB"
+                info_dict["gpu_memory_used"] = f"{torch.cuda.memory_allocated(0) / 1e9:.1f} GB"
+        except Exception:
+            pass
+
+        return info_dict
