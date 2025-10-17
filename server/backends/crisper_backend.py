@@ -61,23 +61,27 @@ class CrisperWhisperBackend(WhisperBackend):
         2
     """
 
+    # Class-level constant
+    INFO = BackendInfo(
+        name="crisper-whisper",
+        supported_platforms={
+            Platform.LINUX_CUDA,
+            Platform.MACOS_APPLE_SILICON,
+        },
+        capabilities={
+            Capability.TRANSCRIPTION,
+            Capability.WORD_TIMESTAMPS,
+            Capability.VERBATIM,  # ⭐ Fillers!
+            Capability.STREAMING,
+        },
+        supported_languages={"en", "de"},
+        model_sizes={"large-v3"},  # Base é Whisper Large v3 fine-tuned
+    )
+
     @property
     def info(self) -> BackendInfo:
-        return BackendInfo(
-            name="crisper-whisper",
-            supported_platforms={
-                Platform.LINUX_CUDA,
-                Platform.MACOS_APPLE_SILICON,
-            },
-            capabilities={
-                Capability.TRANSCRIPTION,
-                Capability.WORD_TIMESTAMPS,
-                Capability.VERBATIM,  # ⭐ Fillers!
-                Capability.STREAMING,
-            },
-            supported_languages={"en", "de"},
-            model_sizes={"large-v3"},  # Base é Whisper Large v3 fine-tuned
-        )
+        """Retorna metadata e capabilities do CrisperWhisper backend (cached)"""
+        return self.__class__.INFO
 
     def __init__(self, config: dict):
         """

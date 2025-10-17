@@ -34,19 +34,22 @@ class MLXBackend(WhisperBackend):
     - STREAMING: Processamento em streaming
     """
 
+    # Class-level constant
+    INFO = BackendInfo(
+        name="mlx-whisper",
+        supported_platforms={Platform.MACOS_APPLE_SILICON},
+        capabilities={
+            Capability.TRANSCRIPTION,
+            Capability.STREAMING,
+            # MLX pode ter word timestamps no futuro
+        },
+        model_sizes={"tiny", "small", "medium", "large", "large-v3"},
+    )
+
     @property
     def info(self) -> BackendInfo:
-        """Retorna metadata e capabilities do MLX backend"""
-        return BackendInfo(
-            name="mlx-whisper",
-            supported_platforms={Platform.MACOS_APPLE_SILICON},
-            capabilities={
-                Capability.TRANSCRIPTION,
-                Capability.STREAMING,
-                # MLX pode ter word timestamps no futuro
-            },
-            model_sizes={"tiny", "small", "medium", "large", "large-v3"},
-        )
+        """Retorna metadata e capabilities do MLX backend (cached)"""
+        return self.__class__.INFO
 
     def __init__(
         self,

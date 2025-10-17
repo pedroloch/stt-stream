@@ -26,20 +26,24 @@ from ..utils.platform import Platform, detect_platform, PlatformNotSupportedErro
 class WhisperXBackend(WhisperBackend):
     """WhisperX Backend - Diarization com pyannote.audio"""
 
+    # Class-level constant
+    INFO = BackendInfo(
+        name="whisperx",
+        supported_platforms={Platform.LINUX_CUDA},
+        capabilities={
+            Capability.TRANSCRIPTION,
+            Capability.WORD_TIMESTAMPS,
+            Capability.SPEAKER_DIARIZATION,  # ⭐ Speaker ID
+            Capability.VAD,
+            Capability.STREAMING,
+        },
+        model_sizes={"tiny", "base", "small", "medium", "large", "large-v2", "large-v3"},
+    )
+
     @property
     def info(self) -> BackendInfo:
-        return BackendInfo(
-            name="whisperx",
-            supported_platforms={Platform.LINUX_CUDA},
-            capabilities={
-                Capability.TRANSCRIPTION,
-                Capability.WORD_TIMESTAMPS,
-                Capability.SPEAKER_DIARIZATION,  # ⭐ Speaker ID
-                Capability.VAD,
-                Capability.STREAMING,
-            },
-            model_sizes={"tiny", "base", "small", "medium", "large", "large-v2", "large-v3"},
-        )
+        """Retorna metadata e capabilities do WhisperX backend (cached)"""
+        return self.__class__.INFO
 
     async def initialize(self) -> None:
         """Inicializa WhisperX (fail-fast se nao CUDA)"""
