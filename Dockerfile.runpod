@@ -37,13 +37,16 @@ COPY pyproject.toml ./
 COPY server/ ./server/
 
 # Instalar dependências Python com CUDA
-# faster-whisper com suporte CUDA
+# Instalar pacotes normais primeiro (do PyPI)
 RUN pip install --no-cache-dir \
     aiohttp==3.9.0 \
     aiohttp-cors==0.7.0 \
     numpy==1.26.0 \
     pyyaml==6.0 \
-    faster-whisper==1.0.3 \
+    faster-whisper==1.0.3
+
+# Instalar PyTorch com CUDA 12.1 (do índice PyTorch)
+RUN pip install --no-cache-dir \
     torch --index-url https://download.pytorch.org/whl/cu121
 
 # Copiar configuração de produção
