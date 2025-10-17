@@ -12,6 +12,7 @@ Uso:
 
 import argparse
 import asyncio
+import contextlib
 import signal
 import sys
 from pathlib import Path
@@ -202,11 +203,9 @@ class WhisperServer:
 
     async def run(self) -> None:
         """Run server loop"""
-        try:
+        with contextlib.suppress(asyncio.CancelledError):
             # Manter servidor rodando
             await asyncio.Future()
-        except asyncio.CancelledError:
-            pass
 
 
 async def main_async(config: Config) -> None:

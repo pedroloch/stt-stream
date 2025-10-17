@@ -181,12 +181,12 @@ class BackendRegistry:
             )
 
             raise PlatformNotSupportedError(
-                f"Backend '{name}' ({backend.info.name}) is not supported on {current_platform.value}.\n\n"
+                f"Backend '{name}' ({backend_info.name}) is not supported on {current_platform.value}.\n\n"
                 f"Available backends for your platform:\n{suggestions}\n\n"
                 f"💡 Suggestion: Use one of the backends above, or deploy on a different platform."
             )
 
-        return backend
+        return backend_class
 
 
 # Função utilitária para migração gradual do factory

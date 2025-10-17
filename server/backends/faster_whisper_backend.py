@@ -139,10 +139,10 @@ class FasterWhisperBackend(WhisperBackend):
             raise BackendNotAvailableError(
                 "faster-whisper nao instalado.\n"
                 "Instale com: pip install faster-whisper"
-            )
+            ) from None
         except Exception as e:
             self.logger.error(f"Erro ao carregar modelo: {e}")
-            raise ModelNotFoundError(f"Falha ao carregar modelo {self.model}: {e}")
+            raise ModelNotFoundError(f"Falha ao carregar modelo {self.model}: {e}") from e
 
     def _detect_best_device(self) -> str:
         """Detecta melhor device disponivel"""
@@ -274,7 +274,7 @@ class FasterWhisperBackend(WhisperBackend):
                 )
 
             # Retornar TranscriptionResult com word timestamps! ⭐
-            result = TranscriptionResult(
+            return TranscriptionResult(
                 text=full_text,
                 is_final=True,
                 confidence=float(avg_confidence),
@@ -283,11 +283,10 @@ class FasterWhisperBackend(WhisperBackend):
                 segments=normalized_segments,
             )
 
-            return result
 
         except Exception as e:
             self.logger.error(f"Erro na transcricao: {e}")
-            raise TranscriptionError(f"Falha na transcricao: {e}")
+            raise TranscriptionError(f"Falha na transcricao: {e}") from e
 
     async def transcribe_stream(
         self, audio_stream: AsyncIterator[np.ndarray]

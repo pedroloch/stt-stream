@@ -21,15 +21,12 @@
   "ruff.fixAll": true,
   "ruff.lint.run": "onSave",
 
-  // Type Checking - mypy
-  "python.linting.enabled": true,
-  "python.linting.mypyEnabled": true,
-  "python.linting.mypyArgs": [
-    "--ignore-missing-imports",
-    "--follow-imports=silent",
-    "--show-column-numbers",
-    "--no-pretty"
-  ],
+  // Type Checking - Pyright (via Pylance)
+  "python.analysis.typeCheckingMode": "standard",
+  "python.analysis.diagnosticMode": "workspace",
+  "python.analysis.autoImportCompletions": true,
+  "python.analysis.inlayHints.functionReturnTypes": true,
+  "python.analysis.inlayHints.variableTypes": true,
 
   // Testing
   "python.testing.pytestEnabled": true,
@@ -43,9 +40,9 @@
     "**/__pycache__": true,
     "**/*.pyc": true,
     "**/.pytest_cache": true,
-    "**/.mypy_cache": true,
     "**/.ruff_cache": true,
-    "**/*.egg-info": true
+    "**/*.egg-info": true,
+    "**/pyrightconfig.json": false
   },
 
   // Editor

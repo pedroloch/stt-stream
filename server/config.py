@@ -4,6 +4,7 @@ Configuration management para o servidor Whisper Stream
 Carrega e valida configurações do arquivo YAML
 """
 
+import contextlib
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -118,7 +119,7 @@ class Config:
         if not path.exists():
             raise FileNotFoundError(f"Config file not found: {config_path}")
 
-        with open(path) as f:
+        with path.open() as f:
             data = yaml.safe_load(f)
 
         if not data:
@@ -140,41 +141,29 @@ class Config:
         # Converter strings para enums se necessário
         whisper_data = data.get("whisper", {})
         if "backend" in whisper_data and isinstance(whisper_data["backend"], str):
-            try:
+            with contextlib.suppress(ValueError):
                 whisper_data["backend"] = BackendType(whisper_data["backend"])
-            except ValueError:
-                pass  # Manter string se não for um enum válido
 
         if "compute_type" in whisper_data and isinstance(whisper_data["compute_type"], str):
-            try:
+            with contextlib.suppress(ValueError):
                 whisper_data["compute_type"] = ComputeType(whisper_data["compute_type"])
-            except ValueError:
-                pass
 
         if "device" in whisper_data and isinstance(whisper_data["device"], str):
-            try:
+            with contextlib.suppress(ValueError):
                 whisper_data["device"] = DeviceType(whisper_data["device"])
-            except ValueError:
-                pass
 
         if "buffer_trimming" in whisper_data and isinstance(whisper_data["buffer_trimming"], str):
-            try:
+            with contextlib.suppress(ValueError):
                 whisper_data["buffer_trimming"] = BufferTrimming(whisper_data["buffer_trimming"])
-            except ValueError:
-                pass
 
         logging_data = data.get("logging", {})
         if "level" in logging_data and isinstance(logging_data["level"], str):
-            try:
+            with contextlib.suppress(ValueError):
                 logging_data["level"] = LogLevel(logging_data["level"])
-            except ValueError:
-                pass
 
         if "format" in logging_data and isinstance(logging_data["format"], str):
-            try:
+            with contextlib.suppress(ValueError):
                 logging_data["format"] = LogFormat(logging_data["format"])
-            except ValueError:
-                pass
 
         return cls(
             server=ServerConfig(**data.get("server", {})),

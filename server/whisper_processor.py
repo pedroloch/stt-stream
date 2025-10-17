@@ -149,8 +149,7 @@ class WhisperProcessor:
             )
 
         # Backend retorna TranscriptionResult diretamente
-        result = await self.backend.transcribe_chunk(audio, context)
-        return result
+        return await self.backend.transcribe_chunk(audio, context)
 
     async def process_audio_stream(
         self,

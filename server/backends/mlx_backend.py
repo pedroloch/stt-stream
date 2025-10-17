@@ -74,12 +74,12 @@ class MLXBackend(WhisperBackend):
         try:
             # Verificar se mlx-whisper está disponível
             try:
-                import mlx_whisper
+                import mlx_whisper  # noqa: F401
             except ImportError:
                 raise BackendNotAvailableError(
                     "mlx-whisper não instalado. Instale com: pip install mlx-whisper\n"
                     "Nota: mlx-whisper só funciona em Apple Silicon (M1/M2/M3)"
-                )
+                ) from None
 
             self.logger.info(f"Carregando modelo {self.model} com MLX (Apple Silicon)...")
 
@@ -112,7 +112,7 @@ class MLXBackend(WhisperBackend):
             raise
         except Exception as e:
             self.logger.error(f"Erro ao carregar modelo MLX: {e}")
-            raise ModelNotFoundError(f"Falha ao carregar modelo {self.model}: {e}")
+            raise ModelNotFoundError(f"Falha ao carregar modelo {self.model}: {e}") from e
 
     async def transcribe_chunk(
         self,
@@ -216,7 +216,7 @@ class MLXBackend(WhisperBackend):
 
         except Exception as e:
             self.logger.error(f"Erro na transcrição MLX: {e}")
-            raise TranscriptionError(f"Falha na transcrição: {e}")
+            raise TranscriptionError(f"Falha na transcrição: {e}") from e
 
     async def transcribe_stream(
         self,

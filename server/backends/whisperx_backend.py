@@ -125,9 +125,9 @@ class WhisperXBackend(WhisperBackend):
                 f"WhisperX não está instalado.\n"
                 f"Instale com: pip install git+https://github.com/m-bain/whisperx.git\n"
                 f"Erro: {e}"
-            )
+            ) from None
         except Exception as e:
-            raise BackendError(f"Erro ao inicializar WhisperX: {e}")
+            raise BackendError(f"Erro ao inicializar WhisperX: {e}") from e
 
     async def transcribe_chunk(
         self, audio: np.ndarray, context: str | None = None
@@ -256,7 +256,7 @@ class WhisperXBackend(WhisperBackend):
 
         except Exception as e:
             self.logger.error(f"Erro na transcrição: {e}")
-            raise TranscriptionError(f"Falha na transcrição: {e}")
+            raise TranscriptionError(f"Falha na transcrição: {e}") from e
 
     async def transcribe_stream(
         self, audio_stream: AsyncIterator[np.ndarray]

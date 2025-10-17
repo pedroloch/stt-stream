@@ -30,7 +30,7 @@ pytest-asyncio = "^0.24.0"  # Latest
 pytest-cov = "^6.0.0"  # Latest
 black = "^24.10.0"  # Latest
 ruff = "^0.9.0"  # Latest (huge improvements!)
-mypy = "^1.14.0"  # Type checking
+pyright = "^1.1.389"  # Type checking (faster than mypy)
 httpx = "^0.28.0"  # Latest
 
 [tool.poetry.scripts]
@@ -86,17 +86,29 @@ indent-style = "space"
 line-ending = "auto"
 
 # ============================================
-# Mypy Configuration (Type Checking)
+# Pyright Configuration (Type Checking)
 # ============================================
-[tool.mypy]
-python_version = "3.11"
-warn_return_any = true
-warn_unused_configs = true
-disallow_untyped_defs = false  # Gradual typing
-ignore_missing_imports = true
-strict_optional = true
-show_error_codes = true
-pretty = true
+[tool.pyright]
+include = ["server"]
+exclude = [
+    "**/__pycache__",
+    "**/.pytest_cache",
+    "**/.ruff_cache",
+    "**/models",  # Downloaded whisper models
+]
+pythonVersion = "3.11"
+pythonPlatform = "All"
+typeCheckingMode = "standard"  # off | basic | standard | strict
+
+# Report settings
+reportMissingImports = true
+reportMissingTypeStubs = false
+reportUnusedImport = "warning"
+reportUnusedVariable = "warning"
+reportDuplicateImport = "warning"
+reportOptionalMemberAccess = "warning"
+reportOptionalSubscript = "warning"
+reportPrivateImportUsage = false
 
 # ============================================
 # Pytest Configuration

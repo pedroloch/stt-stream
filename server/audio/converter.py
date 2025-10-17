@@ -58,9 +58,8 @@ class AudioConverter:
         audio_int16 = np.frombuffer(pcm_bytes, dtype=np.int16)
 
         # Converter para float32 e normalizar usando constante
-        audio_float32 = audio_int16.astype(np.float32) / PCM_INT16_MAX
+        return audio_int16.astype(np.float32) / PCM_INT16_MAX
 
-        return audio_float32
 
     @staticmethod
     def validate_audio(

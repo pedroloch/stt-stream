@@ -92,10 +92,10 @@ class CUDABackend(WhisperBackend):
         except ImportError:
             raise BackendNotAvailableError(
                 "faster-whisper não instalado. Instale com: pip install faster-whisper"
-            )
+            ) from None
         except Exception as e:
             self.logger.error(f"Erro ao carregar modelo: {e}")
-            raise ModelNotFoundError(f"Falha ao carregar modelo {self.model}: {e}")
+            raise ModelNotFoundError(f"Falha ao carregar modelo {self.model}: {e}") from e
 
     def _check_cuda_available(self) -> bool:
         """Verifica se CUDA está disponível"""
@@ -211,7 +211,7 @@ class CUDABackend(WhisperBackend):
 
         except Exception as e:
             self.logger.error(f"Erro na transcrição CUDA: {e}")
-            raise TranscriptionError(f"Falha na transcrição: {e}")
+            raise TranscriptionError(f"Falha na transcrição: {e}") from e
 
     async def transcribe_stream(
         self,
