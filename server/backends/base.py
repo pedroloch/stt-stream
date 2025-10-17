@@ -5,11 +5,15 @@ Define a interface comum que todos os backends devem implementar:
 - MLX (Apple Silicon)
 - CUDA (NVIDIA GPU)
 - CPU (fallback)
+
+Cada backend deve declarar suas capabilities via property `info`.
 """
 
 from abc import ABC, abstractmethod
 from typing import Optional, Dict, Any, AsyncIterator
 import numpy as np
+
+from ..models.capability import BackendInfo
 
 
 class WhisperBackend(ABC):
@@ -17,6 +21,17 @@ class WhisperBackend(ABC):
     Interface abstrata para backends de Whisper
 
     Cada backend (MLX, CUDA, CPU) deve implementar esta interface
+    e declarar suas capabilities via property `info`.
+
+    Example:
+        >>> class MyBackend(WhisperBackend):
+        ...     @property
+        ...     def info(self) -> BackendInfo:
+        ...         return BackendInfo(
+        ...             name="my-backend",
+        ...             supported_platforms={Platform.MACOS_APPLE_SILICON},
+        ...             capabilities={Capability.TRANSCRIPTION},
+        ...         )
     """
 
     def __init__(
@@ -40,6 +55,22 @@ class WhisperBackend(ABC):
         self.compute_type = compute_type
         self.kwargs = kwargs
         self._initialized = False
+
+    @property
+    @abstractmethod
+    def info(self) -> BackendInfo:
+        """
+        Retorna metadata e capabilities do backend
+
+        Cada backend deve retornar um BackendInfo com:
+        - Nome do backend
+        - Plataformas suportadas
+        - Capabilities (transcription, word_timestamps, diarization, etc)
+
+        Returns:
+            BackendInfo com metadata do backend
+        """
+        pass
 
     @abstractmethod
     async def initialize(self) -> None:
