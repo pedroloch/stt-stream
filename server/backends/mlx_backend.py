@@ -61,8 +61,18 @@ class MLXBackend(WhisperBackend):
             self.cache_dir.mkdir(parents=True, exist_ok=True)
 
             # MLX Whisper usa formato HuggingFace Hub
-            # Modelo é referenciado como "mlx-community/whisper-{model}"
-            # Não precisa carregar modelo antecipadamente, usa transcribe() direto
+            # IMPORTANTE: Nem todos modelos Whisper estão disponíveis em MLX
+            # Modelos disponíveis em mlx-community: tiny, small, medium, large
+            # Verificar: https://huggingface.co/mlx-community
+            available_models = ["tiny", "small", "medium", "large", "large-v3"]
+            if self.model not in available_models:
+                self.logger.warning(
+                    f"Modelo '{self.model}' pode não estar disponível em MLX. "
+                    f"Modelos conhecidos: {available_models}"
+                )
+                self.logger.info("Tentando usar 'tiny' como fallback...")
+                self.model = "tiny"
+
             self.model_path = f"mlx-community/whisper-{self.model}"
 
             # Testar que o mlx_whisper funciona (importação já foi feita)
