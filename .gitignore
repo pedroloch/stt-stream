@@ -37,6 +37,7 @@ poetry.lock
 
 # IDEs
 .vscode/
+!.vscode/extensions.json
 .idea/
 *.swp
 *.swo

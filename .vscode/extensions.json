@@ -1,10 +1,15 @@
 {
   "recommendations": [
-    "charliermarsh.ruff",
     "ms-python.python",
-    "ms-python.vscode-pylance",
-    "ms-python.mypy-type-checker",
+    "charliermarsh.pyright",
+    "charliermarsh.ruff",
+    "oven.bun",
+    "esbenp.prettier-vscode",
     "tamasfe.even-better-toml",
-    "redhat.vscode-yaml"
+    "redhat.vscode-yaml",
+    "eamodio.gitlens",
+    "ms-vscode-remote.remote-ssh",
+    "ms-vscode.makefile-tools"
   ]
 }
+
