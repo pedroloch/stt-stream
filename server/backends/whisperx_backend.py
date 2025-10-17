@@ -13,7 +13,7 @@ Capabilities:
 """
 
 from datetime import datetime
-from typing import Optional, AsyncIterator, Any
+from typing import Optional, AsyncIterator, Any, Dict
 import numpy as np
 import logging
 
