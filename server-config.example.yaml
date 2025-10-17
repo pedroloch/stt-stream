@@ -23,7 +23,7 @@ server:
 whisper:
   # Modelo: tiny, base, small, medium, large, large-v3, large-v3-turbo
   # Modelos maiores = mais precisos mas mais lentos
-  model: "medium"
+  model: "base"
 
   # Idioma (auto para detecção automática)
   # Exemplos: pt, en, es, fr, de, etc

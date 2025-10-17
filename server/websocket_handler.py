@@ -139,14 +139,8 @@ class WebSocketHandler:
 
             # Enviar resultado se houver texto
             if result["text"]:
-                await ws.send_json({
-                    "type": "transcription",
-                    "text": result["text"],
-                    "is_final": result["is_final"],
-                    "language": result["language"],
-                    "confidence": result["confidence"],
-                    "timestamp": self._get_timestamp(),
-                })
+                # Enviar resultado completo (já vem do to_websocket_dict() com todos os campos)
+                await ws.send_json(result)
 
                 self.logger.debug(
                     f"[{client_id}] Transcrição: '{result['text'][:50]}...' "

@@ -51,10 +51,13 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 RUN mkdir -p /app/server /app/models /app/cache /app/logs
 
-# Copiar requirements base
-COPY requirements.txt /app/
+# Copiar pyproject.toml para instalar dependências base
+COPY pyproject.toml /app/
 RUN pip install --no-cache-dir --upgrade pip
-RUN pip install --no-cache-dir -r requirements.txt
+# Instalar dependências base do pyproject.toml (sem extras)
+RUN pip install --no-cache-dir poetry && \
+    poetry config virtualenvs.create false && \
+    poetry install --no-root --only main --no-interaction --no-ansi
 
 # Instalar backend específico baseado em ARG
 ARG BACKEND

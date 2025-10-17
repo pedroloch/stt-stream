@@ -50,6 +50,29 @@ def setup_logger(
     Returns:
         Logger configurado
     """
+    # IMPORTANTE: Configurar o root logger para que TODOS os child loggers herdem o nível
+    root_logger = logging.getLogger()
+    root_logger.setLevel(getattr(logging, level.upper()))
+
+    # Adicionar handler ao root logger se não tiver nenhum
+    if not root_logger.handlers:
+        root_console = logging.StreamHandler(sys.stdout)
+        root_console.setLevel(getattr(logging, level.upper()))
+
+        if format_type == "pretty":
+            root_formatter = ColoredFormatter(
+                '%(asctime)s | %(name)s | %(levelname)s | %(message)s',
+                datefmt='%H:%M:%S'
+            )
+        else:
+            root_formatter = logging.Formatter(
+                '{"time": "%(asctime)s", "name": "%(name)s", "level": "%(levelname)s", "message": "%(message)s"}',
+                datefmt='%Y-%m-%d %H:%M:%S'
+            )
+
+        root_console.setFormatter(root_formatter)
+        root_logger.addHandler(root_console)
+
     logger = logging.getLogger(name)
     logger.setLevel(getattr(logging, level.upper()))
 

@@ -13,11 +13,11 @@ Capabilities:
 """
 
 from datetime import datetime
-from typing import Optional, AsyncIterator
+from typing import Optional, AsyncIterator, Any
 import numpy as np
 import logging
 
-from .base import WhisperBackend, BackendError, BackendNotAvailableError
+from .base import WhisperBackend, BackendError, BackendNotAvailableError, TranscriptionError
 from ..models.capability import Capability, BackendInfo
 from ..models.result import TranscriptionResult, Segment, Word
 from ..utils.platform import Platform, detect_platform, PlatformNotSupportedError
@@ -38,7 +38,7 @@ class WhisperXBackend(WhisperBackend):
                 Capability.VAD,
                 Capability.STREAMING,
             },
-            model_sizes={"tiny", "base", "small", "medium", "large", "large-v3"},
+            model_sizes={"tiny", "base", "small", "medium", "large", "large-v2", "large-v3"},
         )
 
     async def initialize(self) -> None:
@@ -52,24 +52,205 @@ class WhisperXBackend(WhisperBackend):
                 f"Deploy on GPU server (RunPod, Vast.ai) or use 'faster-whisper' instead."
             )
 
-        # TODO: Implementar inicializacao completa quando em GPU
         self.logger = logging.getLogger(__name__)
-        self.logger.warning("WhisperX backend - implementacao completa pendente")
-        self._initialized = True
+        self.logger.info(f"Inicializando WhisperX backend (modelo: {self.model}, idioma: {self.language})")
+
+        try:
+            # Import WhisperX (fail-fast se não instalado)
+            import whisperx
+            self.whisperx = whisperx
+
+            # Device
+            self.device = self.kwargs.get("device", "cuda")
+            self.compute_type = self.kwargs.get("compute_type", "float16")
+
+            # 1. Carregar modelo Whisper
+            self.logger.info(f"Carregando modelo Whisper: {self.model}")
+            self.model_instance = whisperx.load_model(
+                self.model,
+                device=self.device,
+                compute_type=self.compute_type,
+                language=self.language if self.language != "auto" else None,
+            )
+
+            # 2. Carregar modelo de alinhamento (word timestamps precisos)
+            self.logger.info("Carregando modelo de alinhamento (wav2vec2)")
+            self.align_model = None
+            self.align_metadata = None
+            try:
+                self.align_model, self.align_metadata = whisperx.load_align_model(
+                    language_code=self.language if self.language != "auto" else "en",
+                    device=self.device,
+                )
+                self.logger.info("✅ Modelo de alinhamento carregado")
+            except Exception as e:
+                self.logger.warning(f"Não foi possível carregar modelo de alinhamento: {e}")
+                self.logger.warning("Word timestamps estarão disponíveis mas menos precisos")
+
+            # 3. Carregar modelo de diarization (speaker identification)
+            self.logger.info("Carregando modelo de diarization (pyannote.audio)")
+            self.diarize_model = None
+            try:
+                # Nota: Requer HuggingFace token com acesso ao pyannote/speaker-diarization
+                # Token pode ser passado via HUGGING_FACE_HUB_TOKEN env var
+                hf_token = self.kwargs.get("hf_token", None)
+                if hf_token:
+                    self.diarize_model = whisperx.DiarizationPipeline(
+                        use_auth_token=hf_token, device=self.device
+                    )
+                    self.logger.info("✅ Modelo de diarization carregado")
+                else:
+                    self.logger.warning("HF token não fornecido - diarization desabilitado")
+                    self.logger.warning("Para habilitar, passe 'hf_token' no config")
+            except Exception as e:
+                self.logger.warning(f"Não foi possível carregar diarization: {e}")
+                self.logger.warning("Speaker identification não estará disponível")
+
+            # Configurações
+            self.batch_size = self.kwargs.get("batch_size", 16)
+            self.min_speakers = self.kwargs.get("min_speakers", None)
+            self.max_speakers = self.kwargs.get("max_speakers", None)
+
+            self._initialized = True
+            self.logger.info("✅ WhisperX backend inicializado com sucesso")
+
+        except ImportError as e:
+            raise BackendNotAvailableError(
+                f"WhisperX não está instalado.\n"
+                f"Instale com: pip install git+https://github.com/m-bain/whisperx.git\n"
+                f"Erro: {e}"
+            )
+        except Exception as e:
+            raise BackendError(f"Erro ao inicializar WhisperX: {e}")
 
     async def transcribe_chunk(
         self, audio: np.ndarray, context: Optional[str] = None
     ) -> TranscriptionResult:
         """Transcreve com speaker diarization"""
-        # Placeholder - implementacao completa quando em GPU
-        return TranscriptionResult(
-            text="WhisperX backend ativo (placeholder)",
-            is_final=True,
-            confidence=1.0,
-            language=self.language,
-            timestamp=datetime.now(),
-            speaker="SPEAKER_00",  # ⭐ Speaker diarization
-        )
+        if not self._initialized or not self.model_instance:
+            raise RuntimeError("Backend não inicializado. Chame initialize() primeiro.")
+
+        try:
+            # Normalizar áudio para float32
+            if audio.dtype != np.float32:
+                audio = audio.astype(np.float32)
+
+            # Normalizar para [-1, 1]
+            if np.abs(audio).max() > 1.0:
+                audio = audio / np.abs(audio).max()
+
+            # 1. Transcrição com Whisper
+            self.logger.debug(f"Transcrevendo {len(audio)/16000:.2f}s de áudio")
+            result = self.model_instance.transcribe(
+                audio,
+                batch_size=self.batch_size,
+                language=self.language if self.language != "auto" else None,
+            )
+
+            # Se vazio
+            if not result["segments"]:
+                return TranscriptionResult(
+                    text="",
+                    is_final=False,
+                    confidence=0.0,
+                    language=result.get("language", self.language),
+                    timestamp=datetime.now(),
+                )
+
+            # 2. Alinhar palavras (word timestamps precisos)
+            if self.align_model and self.align_metadata:
+                self.logger.debug("Alinhando palavras com wav2vec2")
+                result = self.whisperx.align(
+                    result["segments"],
+                    self.align_model,
+                    self.align_metadata,
+                    audio,
+                    self.device,
+                    return_char_alignments=False,
+                )
+
+            # 3. Diarization (speaker identification)
+            speaker_segments = None
+            if self.diarize_model:
+                self.logger.debug("Executando diarization")
+                diarize_result = self.diarize_model(
+                    audio,
+                    min_speakers=self.min_speakers,
+                    max_speakers=self.max_speakers,
+                )
+                speaker_segments = self.whisperx.assign_word_speakers(
+                    diarize_result, result["segments"]
+                )
+
+            # Converter para TranscriptionResult
+            segments_list = speaker_segments if speaker_segments else result["segments"]
+
+            # Concatenar texto
+            full_text = " ".join(seg["text"].strip() for seg in segments_list).strip()
+
+            if not full_text:
+                return TranscriptionResult(
+                    text="",
+                    is_final=False,
+                    confidence=0.0,
+                    language=result.get("language", self.language),
+                    timestamp=datetime.now(),
+                )
+
+            # Converter segmentos
+            normalized_segments = []
+            for seg in segments_list:
+                # Words
+                words = None
+                if "words" in seg:
+                    words = [
+                        Word(
+                            word=w["word"],
+                            start=w["start"],
+                            end=w["end"],
+                            probability=w.get("score", 1.0),
+                            speaker_id=w.get("speaker", None),  # ⭐ Speaker ID!
+                        )
+                        for w in seg["words"]
+                    ]
+
+                normalized_segments.append(
+                    Segment(
+                        start=seg["start"],
+                        end=seg["end"],
+                        text=seg["text"].strip(),
+                        words=words,
+                        speaker_id=seg.get("speaker", None),  # ⭐ Speaker ID no segment!
+                    )
+                )
+
+            # Confiança média (se disponível)
+            avg_confidence = 0.0
+            if segments_list and "score" in segments_list[0]:
+                avg_confidence = sum(s.get("score", 0.0) for s in segments_list) / len(
+                    segments_list
+                )
+
+            # Determinar speaker principal (mais comum)
+            main_speaker = None
+            if speaker_segments:
+                speakers = [s.get("speaker") for s in speaker_segments if s.get("speaker")]
+                if speakers:
+                    main_speaker = max(set(speakers), key=speakers.count)
+
+            return TranscriptionResult(
+                text=full_text,
+                is_final=True,
+                confidence=float(avg_confidence),
+                language=result.get("language", self.language),
+                timestamp=datetime.now(),
+                segments=normalized_segments,
+                speaker=main_speaker,  # ⭐ Speaker principal
+            )
+
+        except Exception as e:
+            self.logger.error(f"Erro na transcrição: {e}")
+            raise TranscriptionError(f"Falha na transcrição: {e}")
 
     async def transcribe_stream(
         self, audio_stream: AsyncIterator[np.ndarray]
@@ -82,4 +263,9 @@ class WhisperXBackend(WhisperBackend):
 
     async def cleanup(self) -> None:
         """Limpa recursos"""
+        self.logger.info("Limpando WhisperX backend")
+        self.model_instance = None
+        self.align_model = None
+        self.align_metadata = None
+        self.diarize_model = None
         self._initialized = False

@@ -197,10 +197,10 @@ class FasterWhisperBackend(WhisperBackend):
                 compression_ratio_threshold=self.kwargs.get(
                     "compression_ratio_threshold", 2.4
                 ),
-                # VAD
-                vad_filter=self.kwargs.get("enable_vad", True),
+                # VAD (fix: use "use_vad" to match config key)
+                vad_filter=self.kwargs.get("use_vad", False),
                 vad_parameters={
-                    "threshold": self.kwargs.get("vad_threshold", 0.75),
+                    "threshold": self.kwargs.get("vad_threshold", 0.5),
                 },
                 # Context
                 initial_prompt=context or self.current_context or None,
@@ -270,7 +270,7 @@ class FasterWhisperBackend(WhisperBackend):
                 )
 
             # Retornar TranscriptionResult com word timestamps! ⭐
-            return TranscriptionResult(
+            result = TranscriptionResult(
                 text=full_text,
                 is_final=True,
                 confidence=float(avg_confidence),
@@ -278,6 +278,8 @@ class FasterWhisperBackend(WhisperBackend):
                 timestamp=datetime.now(),
                 segments=normalized_segments,
             )
+
+            return result
 
         except Exception as e:
             self.logger.error(f"Erro na transcricao: {e}")
