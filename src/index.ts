@@ -39,7 +39,7 @@ class WhisperStreamClient {
   private maxReconnectAttempts = 5;
 
   // Estado
-  private connectionStatus = ConnectionStatus.Disconnected;
+  private connectionStatus: ConnectionStatus = ConnectionStatus.Disconnected;
   private audioStatus: AudioStatus = AudioStatus.Inactive;
 
   // Filtro de duplicatas
@@ -373,7 +373,7 @@ class WhisperStreamClient {
           break;
 
         default:
-          this.logDebug(`Unknown message type: ${message.type}`, message);
+          this.logDebug(`Unknown message type: ${(message as any).type}`, message);
       }
     } catch (error) {
       this.log("error", `Erro ao processar mensagem: ${error}`);
