@@ -9,8 +9,9 @@ import numpy as np
 from typing import Optional, Dict, Any, AsyncIterator
 
 from .config import Config
-from .backends.factory import BackendFactory
+from .backends import BackendRegistry  # Novo sistema!
 from .backends.base import WhisperBackend
+from .utils.platform import detect_platform
 from .utils.hardware_detector import HardwareInfo
 
 
@@ -41,7 +42,6 @@ class WhisperProcessor:
         self.config = config
         self.logger = logging.getLogger(__name__)
         self.backend: Optional[WhisperBackend] = None
-        self.factory = BackendFactory(self.logger)
         self.hardware_info: Optional[HardwareInfo] = None
         self._initialized = False
 
@@ -59,37 +59,56 @@ class WhisperProcessor:
 
         self.logger.info("Inicializando Whisper Processor...")
 
-        # Detectar hardware
-        if self.config.hardware.auto_detect:
-            self.hardware_info = self.factory.detect_hardware(
-                force_type=self.config.hardware.force_type
-            )
+        # Detectar plataforma
+        platform = detect_platform()
+        self.logger.info(f"Plataforma: {platform.value}")
 
-            # Mostrar info de hardware se habilitado
-            if self.config.debug.show_hardware_info:
-                self.factory.detector.print_hardware_info(self.hardware_info)
+        # Listar backends disponíveis
+        available = BackendRegistry.list_available(platform)
+        self.logger.info("Backends disponíveis:")
+        for name, info in available.items():
+            caps = [c.value for c in info.capabilities]
+            self.logger.info(f"  - {name}: {', '.join(caps)}")
 
         # Expandir paths
         self.config.expand_paths()
 
-        # Criar backend
-        self.logger.info(f"Criando backend: {self.config.whisper.backend}")
-        self.backend = self.factory.create_backend(
-            backend_type=self.config.whisper.backend,
-            model=self.config.whisper.model,
-            language=self.config.whisper.language,
-            compute_type=self.config.whisper.compute_type,
-            device=self.config.whisper.device,
-            models_dir=self.config.paths.models_dir,
-            cache_dir=self.config.paths.cache_dir,
-            force_hardware_type=self.config.hardware.force_type,
-            # Passar configurações adicionais
-            beam_size=self.config.whisper.beam_size,
-            best_of=self.config.whisper.best_of,
-            temperature=self.config.whisper.temperature,
-            condition_on_previous_text=self.config.whisper.condition_on_previous_text,
-            use_vad=self.config.whisper.use_vad,
-        )
+        # Criar backend usando novo Registry
+        backend_name = self.config.whisper.backend
+
+        # Se "auto", escolher o melhor disponível
+        if backend_name == "auto":
+            if "faster-whisper" in available:
+                backend_name = "faster-whisper"  # Preferir faster-whisper (universal + word timestamps)
+                self.logger.info("Auto-selecionado: faster-whisper (universal + word timestamps)")
+            elif "mlx" in available:
+                backend_name = "mlx"
+                self.logger.info("Auto-selecionado: mlx (Apple Silicon)")
+            else:
+                backend_name = list(available.keys())[0]
+                self.logger.info(f"Auto-selecionado: {backend_name}")
+
+        self.logger.info(f"Criando backend: {backend_name}")
+
+        # Preparar config do backend
+        backend_config = {
+            "model": self.config.whisper.model,
+            "language": self.config.whisper.language,
+            "compute_type": self.config.whisper.compute_type,
+            "device": self.config.whisper.device,
+            "models_dir": self.config.paths.models_dir,
+            "cache_dir": self.config.paths.cache_dir,
+            # Configurações adicionais
+            "beam_size": self.config.whisper.beam_size,
+            "best_of": self.config.whisper.best_of,
+            "temperature": self.config.whisper.temperature,
+            "condition_on_previous_text": self.config.whisper.condition_on_previous_text,
+            "use_vad": self.config.whisper.use_vad,
+            "enable_word_timestamps": True,  # Habilitar word timestamps!
+        }
+
+        # Criar backend via Registry
+        self.backend = BackendRegistry.create(backend_name, backend_config)
 
         # Inicializar backend (carrega modelo)
         self.logger.info("Carregando modelo Whisper...")
@@ -134,7 +153,9 @@ class WhisperProcessor:
                 "Processor não inicializado. Chame initialize() primeiro."
             )
 
-        return await self.backend.transcribe_chunk(audio, context)
+        # Backend retorna TranscriptionResult, converter para dict WebSocket
+        result = await self.backend.transcribe_chunk(audio, context)
+        return result.to_websocket_dict()
 
     async def process_audio_stream(
         self,

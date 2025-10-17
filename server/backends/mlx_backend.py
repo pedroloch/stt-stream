@@ -9,6 +9,7 @@ import logging
 import numpy as np
 from typing import Optional, Dict, Any, AsyncIterator
 from pathlib import Path
+from datetime import datetime
 
 from .base import (
     WhisperBackend,
@@ -17,6 +18,9 @@ from .base import (
     ModelNotFoundError,
     TranscriptionError
 )
+from ..models.capability import Capability, BackendInfo
+from ..models.result import TranscriptionResult, Segment, Word
+from ..utils.platform import Platform
 
 
 class MLXBackend(WhisperBackend):
@@ -24,7 +28,25 @@ class MLXBackend(WhisperBackend):
     Backend MLX para Apple Silicon
 
     Requer macOS com M1/M2/M3 chip
+
+    Capabilities:
+    - TRANSCRIPTION: Transcrição básica
+    - STREAMING: Processamento em streaming
     """
+
+    @property
+    def info(self) -> BackendInfo:
+        """Retorna metadata e capabilities do MLX backend"""
+        return BackendInfo(
+            name="mlx-whisper",
+            supported_platforms={Platform.MACOS_APPLE_SILICON},
+            capabilities={
+                Capability.TRANSCRIPTION,
+                Capability.STREAMING,
+                # MLX pode ter word timestamps no futuro
+            },
+            model_sizes={"tiny", "small", "medium", "large", "large-v3"},
+        )
 
     def __init__(
         self,
@@ -142,42 +164,50 @@ class MLXBackend(WhisperBackend):
             text = result.get("text", "").strip()
 
             if not text:
-                return {
-                    "text": "",
-                    "is_final": False,
-                    "language": result.get("language", self.language),
-                    "confidence": 0.0,
-                    "segments": []
-                }
+                # Retornar resultado vazio
+                return TranscriptionResult(
+                    text="",
+                    is_final=False,
+                    confidence=0.0,
+                    language=result.get("language", self.language),
+                    timestamp=datetime.now(),
+                )
 
             # Atualizar contexto
             self.current_context = text[-500:] if len(text) > 500 else text
 
             # Processar segmentos
-            segments = result.get("segments", [])
+            segments_raw = result.get("segments", [])
 
             # Calcular confiança média (se disponível)
             confidence = 0.0
-            if segments:
+            if segments_raw:
                 # MLX whisper pode não ter logprobs em todos os casos
                 # Usar no_speech_prob invertido como aproximação
-                no_speech_probs = [seg.get("no_speech_prob", 0.5) for seg in segments]
+                no_speech_probs = [seg.get("no_speech_prob", 0.5) for seg in segments_raw]
                 confidence = 1.0 - (sum(no_speech_probs) / len(no_speech_probs))
 
-            return {
-                "text": text,
-                "is_final": True,
-                "language": result.get("language", self.language),
-                "confidence": float(confidence),
-                "segments": [
-                    {
-                        "start": seg.get("start", 0),
-                        "end": seg.get("end", 0),
-                        "text": seg.get("text", "").strip(),
-                    }
-                    for seg in segments
-                ]
-            }
+            # Converter segmentos para formato normalizado
+            segments = [
+                Segment(
+                    start=seg.get("start", 0),
+                    end=seg.get("end", 0),
+                    text=seg.get("text", "").strip(),
+                    # MLX não tem word timestamps por enquanto
+                    words=None,
+                )
+                for seg in segments_raw
+            ] if segments_raw else None
+
+            # Retornar TranscriptionResult normalizado
+            return TranscriptionResult(
+                text=text,
+                is_final=True,
+                confidence=float(confidence),
+                language=result.get("language", self.language),
+                timestamp=datetime.now(),
+                segments=segments,
+            )
 
         except Exception as e:
             self.logger.error(f"Erro na transcrição MLX: {e}")

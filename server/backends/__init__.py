@@ -1,0 +1,25 @@
+"""
+Backends para Whisper Stream
+
+Auto-registra todos backends disponiveis no BackendRegistry.
+"""
+
+from .registry import BackendRegistry
+from .mlx_backend import MLXBackend
+from .faster_whisper_backend import FasterWhisperBackend
+from .whisperx_backend import WhisperXBackend
+from .seamless_backend import SeamlessM4TBackend
+
+# Registrar backends
+BackendRegistry.register("mlx", MLXBackend)
+BackendRegistry.register("faster-whisper", FasterWhisperBackend)
+BackendRegistry.register("whisperx", WhisperXBackend)
+BackendRegistry.register("seamless-m4t", SeamlessM4TBackend)
+
+__all__ = [
+    "BackendRegistry",
+    "MLXBackend",
+    "FasterWhisperBackend",
+    "WhisperXBackend",
+    "SeamlessM4TBackend",
+]
