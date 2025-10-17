@@ -70,18 +70,21 @@ class BackendRegistry:
         """
         result = {}
         for name, backend_class in cls._backends.items():
-            # Instanciar temporariamente para pegar info
-            # (backends devem ter __init__ sem argumentos obrigatórios ou info como class property)
-            try:
-                backend = backend_class()
-                result[name] = backend.info
-            except Exception:
-                # Se falhar, criar dummy info
-                result[name] = BackendInfo(
-                    name=name,
-                    supported_platforms=set(),
-                    capabilities=set(),
-                )
+            # Acessar INFO class variable diretamente (sem instanciar)
+            if hasattr(backend_class, 'INFO'):
+                result[name] = backend_class.INFO
+            else:
+                # Fallback para backends que ainda usam @property (legacy)
+                try:
+                    backend = backend_class()
+                    result[name] = backend.info
+                except Exception:
+                    # Se falhar, criar dummy info
+                    result[name] = BackendInfo(
+                        name=name,
+                        supported_platforms=set(),
+                        capabilities=set(),
+                    )
         return result
 
     @classmethod
@@ -107,13 +110,20 @@ class BackendRegistry:
 
         available = {}
         for name, backend_class in cls._backends.items():
-            try:
-                backend = backend_class()
-                if platform in backend.info.supported_platforms:
-                    available[name] = backend.info
-            except Exception:
-                # Skip backends que falham ao instanciar
-                pass
+            # Acessar INFO class variable diretamente (sem instanciar)
+            if hasattr(backend_class, 'INFO'):
+                backend_info = backend_class.INFO
+                if platform in backend_info.supported_platforms:
+                    available[name] = backend_info
+            else:
+                # Fallback para backends que ainda usam @property (legacy)
+                try:
+                    backend = backend_class()
+                    if platform in backend.info.supported_platforms:
+                        available[name] = backend.info
+                except Exception:
+                    # Skip backends que falham ao instanciar
+                    pass
 
         return available
 
@@ -147,15 +157,22 @@ class BackendRegistry:
                 f"Available backends: {', '.join(available_names)}"
             )
 
-        # Criar instância
-        backend_class = cls._backends[name]
-        backend = backend_class()
-
         # Detectar plataforma atual
         current_platform = detect_platform()
 
+        # Obter backend class e info
+        backend_class = cls._backends[name]
+
+        # Acessar INFO class variable diretamente para validação
+        if hasattr(backend_class, 'INFO'):
+            backend_info = backend_class.INFO
+        else:
+            # Fallback: instanciar para pegar info (legacy)
+            temp_backend = backend_class()
+            backend_info = temp_backend.info
+
         # Validar compatibilidade
-        if current_platform not in backend.info.supported_platforms:
+        if current_platform not in backend_info.supported_platforms:
             # Gerar mensagem de erro útil com sugestões
             available_backends = cls.list_available(current_platform)
 
