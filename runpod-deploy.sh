@@ -103,12 +103,21 @@ build_image() {
         fi
 
         # Build cross-platform para linux/amd64 (RunPod)
+        # IMPORTANTE: Usa --push direto, não --load, para enviar amd64 ao Docker Hub
+        print_info "Fazendo push direto para Docker Hub (amd64)..."
+
+        # Login check
+        if ! docker info 2>/dev/null | grep -q "Username"; then
+            print_warning "Não está logado no Docker Hub"
+            print_info "Fazendo login..."
+            docker login
+        fi
+
         docker buildx build \
             --platform linux/amd64 \
             -f Dockerfile.runpod \
-            -t "${IMAGE_NAME}:${IMAGE_TAG}" \
             -t "${FULL_IMAGE_NAME}" \
-            --load \
+            --push \
             .
     else
         print_info "Detectado x86_64/amd64 - build nativo"
@@ -254,7 +263,16 @@ main() {
         all)
             build_image
             echo ""
-            push_image
+
+            # No ARM64, build_image já faz push direto
+            # Só fazer push separado em x86_64
+            ARCH=$(uname -m)
+            if [ "$ARCH" != "arm64" ] && [ "$ARCH" != "aarch64" ]; then
+                push_image
+            else
+                print_success "Imagem já foi enviada para Docker Hub durante o build"
+            fi
+
             show_instructions
             ;;
         test)
