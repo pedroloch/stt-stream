@@ -4,15 +4,13 @@ version = "1.0.0"
 description = "Servidor WebSocket independente para transcrição Whisper com suporte a MLX, CUDA e CPU"
 authors = ["Your Name <you@example.com>"]
 readme = "README.md"
+packages = [{include = "server"}]
 
 [tool.poetry.dependencies]
 python = "^3.10"
 aiohttp = "^3.9.0"
 aiohttp-cors = "^0.7.0"
-websockets = "^12.0"
-numpy = "^1.24.0"
-librosa = "^0.10.0"
-soundfile = "^0.12.0"
+numpy = "^1.26.0"
 pyyaml = "^6.0"
 
 # Whisper streaming - usar faster-whisper como base
@@ -27,10 +25,12 @@ mlx = ["mlx-whisper"]
 cuda = ["torch"]
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^7.4.0"
-pytest-asyncio = "^0.21.0"
-black = "^23.12.0"
+pytest = "^8.0.0"
+pytest-asyncio = "^0.23.0"
+pytest-cov = "^4.1.0"
+black = "^24.0.0"
 ruff = "^0.1.9"
+httpx = "^0.26.0"  # Para testar HTTP endpoints
 
 [tool.poetry.scripts]
 whisper-server = "server.main:cli"
