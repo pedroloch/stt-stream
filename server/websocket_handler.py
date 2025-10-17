@@ -7,12 +7,13 @@ Gerencia conexões WebSocket e streaming de áudio/transcrições
 import logging
 import json
 import asyncio
-import numpy as np
 from typing import Optional, Set
 from aiohttp import web, WSMsgType
 
 from .whisper_processor import WhisperProcessor
 from .config import Config
+from .audio import AudioConverter
+from .constants import DEFAULT_SAMPLE_RATE
 
 
 class WebSocketHandler:
@@ -33,6 +34,9 @@ class WebSocketHandler:
         self.processor = processor
         self.config = config
         self.logger = logging.getLogger(__name__)
+
+        # Audio converter
+        self.audio_converter = AudioConverter()
 
         # Tracking de clientes conectados
         self.active_connections: Set[web.WebSocketResponse] = set()
@@ -117,21 +121,19 @@ class WebSocketHandler:
             client_id: ID do cliente
         """
         try:
-            # Converter bytes para numpy array
-            # Assumindo: raw PCM, int16, mono, 16kHz
-            audio_np = np.frombuffer(audio_data, dtype=np.int16)
-
-            # Converter int16 para float32 normalizado
-            audio_float = audio_np.astype(np.float32) / 32768.0
+            # Converter bytes para float32 usando AudioConverter
+            audio_float = self.audio_converter.pcm_int16_to_float32(audio_data)
 
             # Debug: log de info do áudio
             if self.config.logging.log_audio_stats:
-                duration = len(audio_float) / 16000.0
+                stats = self.audio_converter.get_audio_stats(audio_float)
+                duration = self.audio_converter.get_duration(audio_float, DEFAULT_SAMPLE_RATE)
                 self.logger.debug(
                     f"[{client_id}] Áudio recebido: "
                     f"{len(audio_data)} bytes, "
                     f"{duration:.2f}s, "
-                    f"range: [{audio_float.min():.3f}, {audio_float.max():.3f}]"
+                    f"range: [{stats['min']:.3f}, {stats['max']:.3f}], "
+                    f"rms: {stats['rms']:.3f}"
                 )
 
             # Processar com Whisper
