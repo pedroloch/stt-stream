@@ -6,17 +6,19 @@ Fallback quando não há GPU disponível.
 """
 
 import logging
-import numpy as np
-from typing import Optional, Dict, Any, AsyncIterator
+from collections.abc import AsyncIterator
 from pathlib import Path
+from typing import Any
+
+import numpy as np
 
 from .base import (
-    WhisperBackend,
+    MODEL_INIT_PARAMS,
     BackendError,
     BackendNotAvailableError,
     ModelNotFoundError,
     TranscriptionError,
-    MODEL_INIT_PARAMS
+    WhisperBackend,
 )
 
 
@@ -32,8 +34,8 @@ class CPUBackend(WhisperBackend):
         model: str = "base",
         language: str = "pt",
         compute_type: str = "int8",  # int8 é melhor para CPU
-        models_dir: Optional[str] = None,
-        cache_dir: Optional[str] = None,
+        models_dir: str | None = None,
+        cache_dir: str | None = None,
         **kwargs
     ):
         super().__init__(model, language, compute_type, **kwargs)
@@ -86,8 +88,8 @@ class CPUBackend(WhisperBackend):
     async def transcribe_chunk(
         self,
         audio: np.ndarray,
-        context: Optional[str] = None
-    ) -> Dict[str, Any]:
+        context: str | None = None
+    ) -> dict[str, Any]:
         """
         Transcreve um chunk de áudio
 
@@ -173,7 +175,7 @@ class CPUBackend(WhisperBackend):
     async def transcribe_stream(
         self,
         audio_stream: AsyncIterator[np.ndarray]
-    ) -> AsyncIterator[Dict[str, Any]]:
+    ) -> AsyncIterator[dict[str, Any]]:
         """
         Transcreve stream de áudio
 
@@ -192,7 +194,7 @@ class CPUBackend(WhisperBackend):
             self._initialized = False
             self.logger.info("Backend CPU limpo")
 
-    def get_backend_info(self) -> Dict[str, Any]:
+    def get_backend_info(self) -> dict[str, Any]:
         """Retorna informações sobre o backend"""
         return {
             "name": "CPU Backend (faster-whisper)",

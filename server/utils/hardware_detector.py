@@ -9,21 +9,21 @@ Detecta automaticamente o hardware disponível:
 Esta detecção roda APENAS no servidor Python, não no cliente Bun.
 """
 
+import logging
 import platform
 import subprocess
-import logging
 from dataclasses import dataclass
-from typing import Optional, Dict, Any
+from typing import Any
 
 
 @dataclass
 class HardwareInfo:
     """Informações sobre o hardware detectado"""
     type: str  # "apple_silicon", "cuda", or "cpu"
-    device_name: Optional[str] = None
-    memory: Optional[str] = None
-    compute_capability: Optional[str] = None
-    details: Optional[Dict[str, Any]] = None
+    device_name: str | None = None
+    memory: str | None = None
+    compute_capability: str | None = None
+    details: dict[str, Any] | None = None
 
 
 class HardwareDetector:
@@ -36,10 +36,10 @@ class HardwareDetector:
     3. CPU (fallback)
     """
 
-    def __init__(self, logger: Optional[logging.Logger] = None):
+    def __init__(self, logger: logging.Logger | None = None):
         self.logger = logger or logging.getLogger(__name__)
 
-    def detect(self, force_type: Optional[str] = None) -> HardwareInfo:
+    def detect(self, force_type: str | None = None) -> HardwareInfo:
         """
         Detecta o hardware disponível
 
@@ -183,7 +183,7 @@ class HardwareDetector:
             self.logger.warning(f"Erro ao obter info CPU: {e}")
             return HardwareInfo(type="cpu", device_name="CPU")
 
-    def _get_cuda_driver_version(self) -> Optional[str]:
+    def _get_cuda_driver_version(self) -> str | None:
         """Obtém versão do driver CUDA"""
         try:
             result = subprocess.run(

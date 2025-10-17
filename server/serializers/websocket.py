@@ -5,8 +5,9 @@ Serializa modelos de dados para formato WebSocket JSON.
 Separação de concerns: Model layer não conhece transport layer.
 """
 
-from typing import Dict, Any
-from ..models.result import TranscriptionResult, Segment, Word
+from typing import Any
+
+from ..models.result import Segment, TranscriptionResult, Word
 
 
 class WebSocketSerializer:
@@ -18,7 +19,7 @@ class WebSocketSerializer:
     """
 
     @staticmethod
-    def serialize_transcription(result: TranscriptionResult) -> Dict[str, Any]:
+    def serialize_transcription(result: TranscriptionResult) -> dict[str, Any]:
         """
         Serializa TranscriptionResult para formato WebSocket
 
@@ -68,7 +69,7 @@ class WebSocketSerializer:
         return message
 
     @staticmethod
-    def _serialize_segment(segment: Segment) -> Dict[str, Any]:
+    def _serialize_segment(segment: Segment) -> dict[str, Any]:
         """
         Serializa um Segment para dict
 
@@ -102,7 +103,7 @@ class WebSocketSerializer:
         return seg_dict
 
     @staticmethod
-    def _serialize_word(word: Word) -> Dict[str, Any]:
+    def _serialize_word(word: Word) -> dict[str, Any]:
         """
         Serializa uma Word para dict
 
@@ -116,7 +117,7 @@ class WebSocketSerializer:
         return word.to_dict()
 
     @staticmethod
-    def serialize_error(message: str, code: str = None) -> Dict[str, Any]:
+    def serialize_error(message: str, code: str = None) -> dict[str, Any]:
         """
         Serializa mensagem de erro
 
@@ -141,7 +142,7 @@ class WebSocketSerializer:
         return error
 
     @staticmethod
-    def serialize_connected(server_info: Dict[str, Any], session_id: str = None) -> Dict[str, Any]:
+    def serialize_connected(server_info: dict[str, Any], session_id: str = None) -> dict[str, Any]:
         """
         Serializa mensagem de conexão
 
@@ -170,7 +171,7 @@ class WebSocketSerializer:
         return message
 
     @staticmethod
-    def serialize_pong() -> Dict[str, Any]:
+    def serialize_pong() -> dict[str, Any]:
         """
         Serializa resposta pong
 
@@ -180,7 +181,7 @@ class WebSocketSerializer:
         return {"type": "pong"}
 
     @staticmethod
-    def serialize_info(data: Dict[str, Any]) -> Dict[str, Any]:
+    def serialize_info(data: dict[str, Any]) -> dict[str, Any]:
         """
         Serializa resposta de info
 
@@ -196,7 +197,7 @@ class WebSocketSerializer:
         }
 
     @staticmethod
-    def serialize_server_shutdown(message: str = "Servidor está encerrando") -> Dict[str, Any]:
+    def serialize_server_shutdown(message: str = "Servidor está encerrando") -> dict[str, Any]:
         """
         Serializa mensagem de shutdown
 

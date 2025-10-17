@@ -4,12 +4,13 @@ Configuration management para o servidor Whisper Stream
 Carrega e valida configurações do arquivo YAML
 """
 
-import yaml
-from pathlib import Path
 from dataclasses import dataclass, field
-from typing import Optional, Dict, Any, List, Union
+from pathlib import Path
+from typing import Any
 
-from .models.enums import BackendType, LogLevel, LogFormat, ComputeType, DeviceType, BufferTrimming
+import yaml
+
+from .models.enums import BackendType, BufferTrimming, ComputeType, DeviceType, LogFormat, LogLevel
 
 
 @dataclass
@@ -20,7 +21,7 @@ class ServerConfig:
     max_clients: int = 5
     idle_timeout: int = 300
     cors_enabled: bool = True
-    allowed_origins: List[str] = field(default_factory=lambda: ["*"])
+    allowed_origins: list[str] = field(default_factory=lambda: ["*"])
 
 
 @dataclass
@@ -28,13 +29,13 @@ class WhisperConfig:
     """Configurações do Whisper"""
     model: str = "base"
     language: str = "pt"
-    backend: Union[BackendType, str] = BackendType.AUTO
-    device: Union[DeviceType, str] = DeviceType.AUTO
-    compute_type: Union[ComputeType, str] = ComputeType.FLOAT16
+    backend: BackendType | str = BackendType.AUTO
+    device: DeviceType | str = DeviceType.AUTO
+    compute_type: ComputeType | str = ComputeType.FLOAT16
     use_vad: bool = True
     vad_threshold: float = 0.5
     min_chunk_size: float = 1.0
-    buffer_trimming: Union[BufferTrimming, str] = BufferTrimming.SEGMENT
+    buffer_trimming: BufferTrimming | str = BufferTrimming.SEGMENT
     beam_size: int = 1
     best_of: int = 1
     temperature: float = 0.0
@@ -59,10 +60,10 @@ class PathsConfig:
 @dataclass
 class LoggingConfig:
     """Configurações de logging"""
-    level: Union[LogLevel, str] = LogLevel.INFO
+    level: LogLevel | str = LogLevel.INFO
     save_to_file: bool = True
     log_dir: str = "./logs"
-    format: Union[LogFormat, str] = LogFormat.PRETTY
+    format: LogFormat | str = LogFormat.PRETTY
     log_audio_stats: bool = False
 
 
@@ -70,7 +71,7 @@ class LoggingConfig:
 class HardwareConfig:
     """Configurações de hardware"""
     auto_detect: bool = True
-    force_type: Optional[str] = None  # apple_silicon, cuda, cpu
+    force_type: str | None = None  # apple_silicon, cuda, cpu
 
 
 @dataclass
@@ -117,7 +118,7 @@ class Config:
         if not path.exists():
             raise FileNotFoundError(f"Config file not found: {config_path}")
 
-        with open(path, 'r') as f:
+        with open(path) as f:
             data = yaml.safe_load(f)
 
         if not data:
@@ -126,7 +127,7 @@ class Config:
         return cls.from_dict(data)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "Config":
+    def from_dict(cls, data: dict[str, Any]) -> "Config":
         """
         Cria Config a partir de dicionário
 

@@ -7,7 +7,6 @@ de forma uniforme, independente do backend usado (MLX, WhisperX, etc).
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional, List, Dict
 
 
 @dataclass
@@ -47,8 +46,8 @@ class Word:
     # Campos opcionais (verbatim transcription, diarization, multilingual)
     is_filler: bool = False
     is_punctuation: bool = False
-    speaker_id: Optional[str] = None
-    language: Optional[str] = None
+    speaker_id: str | None = None
+    language: str | None = None
 
     @property
     def duration(self) -> float:
@@ -131,11 +130,11 @@ class Segment:
     start: float
     end: float
     text: str
-    words: Optional[List[Word]] = None
+    words: list[Word] | None = None
 
     # Campos opcionais (frame-level confidence, diarization)
-    confidence_per_frame: Optional[List[float]] = None
-    speaker_id: Optional[str] = None
+    confidence_per_frame: list[float] | None = None
+    speaker_id: str | None = None
 
     @property
     def duration(self) -> float:
@@ -215,13 +214,13 @@ class TranscriptionResult:
     timestamp: datetime
 
     # Campos opcionais (dependem de capability)
-    segments: Optional[List[Segment]] = None
-    speaker: Optional[str] = None  # "SPEAKER_00", "SPEAKER_01", etc
-    translation: Optional[Dict[str, str]] = None  # {"en": "...", "es": "..."}
+    segments: list[Segment] | None = None
+    speaker: str | None = None  # "SPEAKER_00", "SPEAKER_01", etc
+    translation: dict[str, str] | None = None  # {"en": "...", "es": "..."}
 
     # Metadata opcional
-    processing_time_ms: Optional[float] = None
-    model_name: Optional[str] = None
+    processing_time_ms: float | None = None
+    model_name: str | None = None
 
     @property
     def total_words(self) -> int:

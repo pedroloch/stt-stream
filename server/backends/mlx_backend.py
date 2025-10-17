@@ -6,21 +6,23 @@ Otimizado para chips Apple com unified memory.
 """
 
 import logging
-import numpy as np
-from typing import Optional, Dict, Any, AsyncIterator
-from pathlib import Path
+from collections.abc import AsyncIterator
 from datetime import datetime
+from pathlib import Path
+from typing import Any
 
+import numpy as np
+
+from ..models.capability import BackendInfo, Capability
+from ..models.result import Segment, TranscriptionResult
+from ..utils.platform import Platform
 from .base import (
-    WhisperBackend,
     BackendError,
     BackendNotAvailableError,
     ModelNotFoundError,
-    TranscriptionError
+    TranscriptionError,
+    WhisperBackend,
 )
-from ..models.capability import Capability, BackendInfo
-from ..models.result import TranscriptionResult, Segment, Word
-from ..utils.platform import Platform
 
 
 class MLXBackend(WhisperBackend):
@@ -56,8 +58,8 @@ class MLXBackend(WhisperBackend):
         model: str = "base",
         language: str = "pt",
         compute_type: str = "float16",
-        models_dir: Optional[str] = None,
-        cache_dir: Optional[str] = None,
+        models_dir: str | None = None,
+        cache_dir: str | None = None,
         **kwargs
     ):
         super().__init__(model, language, compute_type, **kwargs)
@@ -115,8 +117,8 @@ class MLXBackend(WhisperBackend):
     async def transcribe_chunk(
         self,
         audio: np.ndarray,
-        context: Optional[str] = None
-    ) -> Dict[str, Any]:
+        context: str | None = None
+    ) -> dict[str, Any]:
         """
         Transcreve um chunk de áudio usando MLX
 
@@ -219,7 +221,7 @@ class MLXBackend(WhisperBackend):
     async def transcribe_stream(
         self,
         audio_stream: AsyncIterator[np.ndarray]
-    ) -> AsyncIterator[Dict[str, Any]]:
+    ) -> AsyncIterator[dict[str, Any]]:
         """Transcreve stream de áudio"""
         async for audio_chunk in audio_stream:
             result = await self.transcribe_chunk(audio_chunk)
@@ -234,7 +236,7 @@ class MLXBackend(WhisperBackend):
             self._initialized = False
             self.logger.info("Backend MLX limpo")
 
-    def get_backend_info(self) -> Dict[str, Any]:
+    def get_backend_info(self) -> dict[str, Any]:
         """Retorna informações sobre o backend"""
         info = {
             "name": "MLX Backend (Apple Silicon)",

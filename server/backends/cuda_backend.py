@@ -6,17 +6,19 @@ Significativamente mais rápido que CPU.
 """
 
 import logging
-import numpy as np
-from typing import Optional, Dict, Any, AsyncIterator
+from collections.abc import AsyncIterator
 from pathlib import Path
+from typing import Any
+
+import numpy as np
 
 from .base import (
-    WhisperBackend,
+    MODEL_INIT_PARAMS,
     BackendError,
     BackendNotAvailableError,
     ModelNotFoundError,
     TranscriptionError,
-    MODEL_INIT_PARAMS
+    WhisperBackend,
 )
 
 
@@ -33,8 +35,8 @@ class CUDABackend(WhisperBackend):
         language: str = "pt",
         compute_type: str = "float16",
         device: str = "cuda:0",
-        models_dir: Optional[str] = None,
-        cache_dir: Optional[str] = None,
+        models_dir: str | None = None,
+        cache_dir: str | None = None,
         **kwargs
     ):
         super().__init__(model, language, compute_type, **kwargs)
@@ -129,8 +131,8 @@ class CUDABackend(WhisperBackend):
     async def transcribe_chunk(
         self,
         audio: np.ndarray,
-        context: Optional[str] = None
-    ) -> Dict[str, Any]:
+        context: str | None = None
+    ) -> dict[str, Any]:
         """
         Transcreve um chunk de áudio usando GPU
 
@@ -214,7 +216,7 @@ class CUDABackend(WhisperBackend):
     async def transcribe_stream(
         self,
         audio_stream: AsyncIterator[np.ndarray]
-    ) -> AsyncIterator[Dict[str, Any]]:
+    ) -> AsyncIterator[dict[str, Any]]:
         """Transcreve stream de áudio"""
         async for audio_chunk in audio_stream:
             result = await self.transcribe_chunk(audio_chunk)
@@ -239,7 +241,7 @@ class CUDABackend(WhisperBackend):
             self._initialized = False
             self.logger.info("Backend CUDA limpo")
 
-    def get_backend_info(self) -> Dict[str, Any]:
+    def get_backend_info(self) -> dict[str, Any]:
         """Retorna informações sobre o backend"""
         info = {
             "name": "CUDA Backend (faster-whisper)",

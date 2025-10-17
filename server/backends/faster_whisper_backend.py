@@ -17,21 +17,23 @@ Recomendado: usar modelo "distil-large-v3" (6x mais rapido)
 """
 
 import logging
-import numpy as np
-from typing import Optional, Dict, Any, AsyncIterator
-from pathlib import Path
+from collections.abc import AsyncIterator
 from datetime import datetime
+from pathlib import Path
+from typing import Any
 
+import numpy as np
+
+from ..models.capability import BackendInfo, Capability
+from ..models.result import Segment, TranscriptionResult, Word
+from ..utils.platform import Platform
 from .base import (
-    WhisperBackend,
     BackendError,
     BackendNotAvailableError,
     ModelNotFoundError,
     TranscriptionError,
+    WhisperBackend,
 )
-from ..models.capability import Capability, BackendInfo
-from ..models.result import TranscriptionResult, Segment, Word
-from ..utils.platform import Platform
 
 
 class FasterWhisperBackend(WhisperBackend):
@@ -81,8 +83,8 @@ class FasterWhisperBackend(WhisperBackend):
         language: str = "pt",
         compute_type: str = "auto",
         device: str = "auto",
-        models_dir: Optional[str] = None,
-        cache_dir: Optional[str] = None,
+        models_dir: str | None = None,
+        cache_dir: str | None = None,
         **kwargs
     ):
         super().__init__(model, language, compute_type, **kwargs)
@@ -163,12 +165,11 @@ class FasterWhisperBackend(WhisperBackend):
             if "distil" in self.model:
                 return "int8_float16"
             return "float16"
-        else:
-            # CPU: int8 eh mais rapido
-            return "int8"
+        # CPU: int8 eh mais rapido
+        return "int8"
 
     async def transcribe_chunk(
-        self, audio: np.ndarray, context: Optional[str] = None
+        self, audio: np.ndarray, context: str | None = None
     ) -> TranscriptionResult:
         """
         Transcreve chunk de audio com word-level timestamps
@@ -305,7 +306,7 @@ class FasterWhisperBackend(WhisperBackend):
             self._initialized = False
             self.logger.info("Backend faster-whisper limpo")
 
-    def get_backend_info(self) -> Dict[str, Any]:
+    def get_backend_info(self) -> dict[str, Any]:
         """Retorna informacoes sobre o backend"""
         info_dict = {
             "name": "faster-whisper (Universal)",

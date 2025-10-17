@@ -4,17 +4,16 @@ WebSocket Handler para o servidor Whisper Stream
 Gerencia conexões WebSocket e streaming de áudio/transcrições
 """
 
-import logging
 import json
-import asyncio
-from typing import Optional, Set
-from aiohttp import web, WSMsgType
+import logging
 
-from .whisper_processor import WhisperProcessor
-from .config import Config
+from aiohttp import WSMsgType, web
+
 from .audio import AudioConverter
-from .serializers import WebSocketSerializer
+from .config import Config
 from .constants import DEFAULT_SAMPLE_RATE
+from .serializers import WebSocketSerializer
+from .whisper_processor import WhisperProcessor
 
 
 class WebSocketHandler:
@@ -40,7 +39,7 @@ class WebSocketHandler:
         self.audio_converter = AudioConverter()
 
         # Tracking de clientes conectados
-        self.active_connections: Set[web.WebSocketResponse] = set()
+        self.active_connections: set[web.WebSocketResponse] = set()
 
     async def handle_websocket(self, request: web.Request) -> web.WebSocketResponse:
         """

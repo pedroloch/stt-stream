@@ -16,7 +16,6 @@ Define quais funcionalidades cada backend suporta:
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Set, Optional
 
 from ..utils.platform import Platform
 
@@ -66,10 +65,10 @@ class BackendInfo:
     """
 
     name: str
-    supported_platforms: Set[Platform]
-    capabilities: Set[Capability]
-    supported_languages: Optional[Set[str]] = None
-    model_sizes: Optional[Set[str]] = None
+    supported_platforms: set[Platform]
+    capabilities: set[Capability]
+    supported_languages: set[str] | None = None
+    model_sizes: set[str] | None = None
 
     def has_capability(self, capability: Capability) -> bool:
         """

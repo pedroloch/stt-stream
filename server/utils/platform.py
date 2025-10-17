@@ -14,7 +14,6 @@ Esta detecção acontece APENAS no servidor Python.
 import platform
 import subprocess
 from enum import Enum
-from typing import Optional
 
 
 class Platform(Enum):
@@ -58,32 +57,28 @@ def detect_platform() -> Platform:
     if system == "Darwin":
         if machine == "arm64":
             return Platform.MACOS_APPLE_SILICON
-        else:
-            return Platform.MACOS_INTEL
+        return Platform.MACOS_INTEL
 
     # Linux
-    elif system == "Linux":
+    if system == "Linux":
         if has_nvidia_gpu():
             return Platform.LINUX_CUDA
-        else:
-            return Platform.LINUX_CPU
+        return Platform.LINUX_CPU
 
     # Windows
-    elif system == "Windows":
+    if system == "Windows":
         if has_nvidia_gpu():
             return Platform.WINDOWS_CUDA
-        else:
-            raise PlatformNotSupportedError(
-                "Windows CPU not supported. "
-                "Please use a machine with NVIDIA GPU or deploy on Linux/macOS."
-            )
+        raise PlatformNotSupportedError(
+            "Windows CPU not supported. "
+            "Please use a machine with NVIDIA GPU or deploy on Linux/macOS."
+        )
 
     # Plataforma desconhecida
-    else:
-        raise PlatformNotSupportedError(
-            f"Unknown platform: {system} {machine}. "
-            f"Supported platforms: macOS, Linux, Windows (with NVIDIA GPU)"
-        )
+    raise PlatformNotSupportedError(
+        f"Unknown platform: {system} {machine}. "
+        f"Supported platforms: macOS, Linux, Windows (with NVIDIA GPU)"
+    )
 
 
 def has_nvidia_gpu() -> bool:
@@ -123,7 +118,7 @@ def has_nvidia_gpu() -> bool:
         return False
 
 
-def get_platform_name(plat: Optional[Platform] = None) -> str:
+def get_platform_name(plat: Platform | None = None) -> str:
     """
     Retorna nome humanizado da plataforma
 

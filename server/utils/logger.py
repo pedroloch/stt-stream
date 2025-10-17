@@ -7,9 +7,8 @@ e níveis de log.
 
 import logging
 import sys
-from pathlib import Path
-from typing import Optional
 from datetime import datetime
+from pathlib import Path
 
 
 class ColoredFormatter(logging.Formatter):
@@ -34,7 +33,7 @@ def setup_logger(
     name: str,
     level: str = "INFO",
     save_to_file: bool = False,
-    log_dir: Optional[Path] = None,
+    log_dir: Path | None = None,
     format_type: str = "pretty"
 ) -> logging.Logger:
     """

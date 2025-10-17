@@ -5,11 +5,12 @@ Handles conversion between different audio formats and provides
 utilities for audio processing.
 """
 
-import numpy as np
-from typing import Dict, Any
 import logging
+from typing import Any
 
-from ..constants import PCM_INT16_MAX, DEFAULT_SAMPLE_RATE
+import numpy as np
+
+from ..constants import DEFAULT_SAMPLE_RATE, PCM_INT16_MAX
 
 
 class AudioConverter:
@@ -66,7 +67,7 @@ class AudioConverter:
         audio: np.ndarray,
         expected_sample_rate: int = None,
         min_duration: float = 0.1,
-        max_duration: float = 30.0
+        max_duration: float = 30.0,
     ) -> bool:
         """
         Valida array de áudio
@@ -104,14 +105,10 @@ class AudioConverter:
             duration = len(audio) / float(expected_sample_rate)
 
             if duration < min_duration:
-                raise ValueError(
-                    f"Audio too short: {duration:.2f}s (min: {min_duration}s)"
-                )
+                raise ValueError(f"Audio too short: {duration:.2f}s (min: {min_duration}s)")
 
             if duration > max_duration:
-                raise ValueError(
-                    f"Audio too long: {duration:.2f}s (max: {max_duration}s)"
-                )
+                raise ValueError(f"Audio too long: {duration:.2f}s (max: {max_duration}s)")
 
         return True
 
@@ -135,7 +132,7 @@ class AudioConverter:
         return len(audio) / float(sample_rate)
 
     @staticmethod
-    def get_audio_stats(audio: np.ndarray) -> Dict[str, Any]:
+    def get_audio_stats(audio: np.ndarray) -> dict[str, Any]:
         """
         Retorna estatísticas do áudio para debugging
 

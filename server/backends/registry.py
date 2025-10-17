@@ -5,12 +5,11 @@ Sistema de registro e criação de backends com validação de plataforma
 e capabilities. Substitui o BackendFactory com uma API mais declarativa.
 """
 
-from typing import Dict, Type, Optional
 import logging
 
-from .base import WhisperBackend
 from ..models.capability import BackendInfo
-from ..utils.platform import Platform, detect_platform, PlatformNotSupportedError
+from ..utils.platform import Platform, PlatformNotSupportedError, detect_platform
+from .base import WhisperBackend
 
 
 class BackendNotFoundError(Exception):
@@ -39,10 +38,10 @@ class BackendRegistry:
     """
 
     # Registry interno: {nome: classe}
-    _backends: Dict[str, Type[WhisperBackend]] = {}
+    _backends: dict[str, type[WhisperBackend]] = {}
 
     @classmethod
-    def register(cls, name: str, backend_class: Type[WhisperBackend]) -> None:
+    def register(cls, name: str, backend_class: type[WhisperBackend]) -> None:
         """
         Registra um backend customizado
 
@@ -56,7 +55,7 @@ class BackendRegistry:
         cls._backends[name] = backend_class
 
     @classmethod
-    def list_all(cls) -> Dict[str, BackendInfo]:
+    def list_all(cls) -> dict[str, BackendInfo]:
         """
         Lista todos backends registrados (mesmo incompatíveis)
 
@@ -88,7 +87,7 @@ class BackendRegistry:
         return result
 
     @classmethod
-    def list_available(cls, platform: Optional[Platform] = None) -> Dict[str, BackendInfo]:
+    def list_available(cls, platform: Platform | None = None) -> dict[str, BackendInfo]:
         """
         Lista backends disponíveis para uma plataforma
 

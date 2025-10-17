@@ -10,18 +10,19 @@ Uso:
     python -m server.main --host 0.0.0.0 --port 9090 --model base
 """
 
-import asyncio
-import sys
 import argparse
+import asyncio
 import signal
+import sys
 from pathlib import Path
+
 from aiohttp import web
 
 from .config import Config
-from .whisper_processor import WhisperProcessor
-from .websocket_handler import WebSocketHandler
 from .serializers import WebSocketSerializer
 from .utils.logger import setup_logger
+from .websocket_handler import WebSocketHandler
+from .whisper_processor import WhisperProcessor
 
 
 class WhisperServer:
@@ -111,11 +112,10 @@ class WhisperServer:
                 "status": "healthy",
                 "processor_ready": True
             })
-        else:
-            return web.json_response({
-                "status": "initializing",
-                "processor_ready": False
-            }, status=503)
+        return web.json_response({
+            "status": "initializing",
+            "processor_ready": False
+        }, status=503)
 
     async def get_info(self, request: web.Request) -> web.Response:
         """

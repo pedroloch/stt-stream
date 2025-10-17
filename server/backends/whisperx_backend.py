@@ -12,15 +12,17 @@ Capabilities:
 - STREAMING
 """
 
-from datetime import datetime
-from typing import Optional, AsyncIterator, Any, Dict
-import numpy as np
 import logging
+from collections.abc import AsyncIterator
+from datetime import datetime
+from typing import Any
 
-from .base import WhisperBackend, BackendError, BackendNotAvailableError, TranscriptionError
-from ..models.capability import Capability, BackendInfo
-from ..models.result import TranscriptionResult, Segment, Word
-from ..utils.platform import Platform, detect_platform, PlatformNotSupportedError
+import numpy as np
+
+from ..models.capability import BackendInfo, Capability
+from ..models.result import Segment, TranscriptionResult, Word
+from ..utils.platform import Platform, PlatformNotSupportedError, detect_platform
+from .base import BackendError, BackendNotAvailableError, TranscriptionError, WhisperBackend
 
 
 class WhisperXBackend(WhisperBackend):
@@ -128,7 +130,7 @@ class WhisperXBackend(WhisperBackend):
             raise BackendError(f"Erro ao inicializar WhisperX: {e}")
 
     async def transcribe_chunk(
-        self, audio: np.ndarray, context: Optional[str] = None
+        self, audio: np.ndarray, context: str | None = None
     ) -> TranscriptionResult:
         """Transcreve com speaker diarization"""
         if not self._initialized or not self.model_instance:
@@ -274,7 +276,7 @@ class WhisperXBackend(WhisperBackend):
         self.diarize_model = None
         self._initialized = False
 
-    def get_backend_info(self) -> Dict[str, Any]:
+    def get_backend_info(self) -> dict[str, Any]:
         """
         Retorna informações sobre o backend WhisperX
 

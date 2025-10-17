@@ -10,7 +10,9 @@ Cada backend deve declarar suas capabilities via property `info`.
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional, Dict, Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Any
+
 import numpy as np
 
 from ..models.capability import BackendInfo
@@ -86,8 +88,8 @@ class WhisperBackend(ABC):
     async def transcribe_chunk(
         self,
         audio: np.ndarray,
-        context: Optional[str] = None
-    ) -> Dict[str, Any]:
+        context: str | None = None
+    ) -> dict[str, Any]:
         """
         Transcreve um chunk de áudio
 
@@ -111,7 +113,7 @@ class WhisperBackend(ABC):
     async def transcribe_stream(
         self,
         audio_stream: AsyncIterator[np.ndarray]
-    ) -> AsyncIterator[Dict[str, Any]]:
+    ) -> AsyncIterator[dict[str, Any]]:
         """
         Transcreve stream de áudio (chunks contínuos)
 
@@ -135,7 +137,7 @@ class WhisperBackend(ABC):
         return self._initialized
 
     @abstractmethod
-    def get_backend_info(self) -> Dict[str, Any]:
+    def get_backend_info(self) -> dict[str, Any]:
         """
         Retorna informações sobre o backend
 

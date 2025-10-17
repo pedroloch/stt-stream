@@ -5,14 +5,16 @@ Gerencia o ciclo de vida do backend e fornece API simples para transcrição
 """
 
 import logging
-import numpy as np
-from typing import Optional, Dict, Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Any
 
-from .config import Config
+import numpy as np
+
 from .backends import BackendRegistry  # Novo sistema!
 from .backends.base import WhisperBackend
-from .utils.platform import detect_platform
+from .config import Config
 from .utils.hardware_detector import HardwareInfo
+from .utils.platform import detect_platform
 
 
 class WhisperProcessor:
@@ -41,8 +43,8 @@ class WhisperProcessor:
         """
         self.config = config
         self.logger = logging.getLogger(__name__)
-        self.backend: Optional[WhisperBackend] = None
-        self.hardware_info: Optional[HardwareInfo] = None
+        self.backend: WhisperBackend | None = None
+        self.hardware_info: HardwareInfo | None = None
         self._initialized = False
 
     async def initialize(self) -> None:
@@ -126,7 +128,7 @@ class WhisperProcessor:
     async def process_audio(
         self,
         audio: np.ndarray,
-        context: Optional[str] = None
+        context: str | None = None
     ):
         """
         Processa um chunk de áudio
@@ -153,7 +155,7 @@ class WhisperProcessor:
     async def process_audio_stream(
         self,
         audio_stream: AsyncIterator[np.ndarray]
-    ) -> AsyncIterator[Dict[str, Any]]:
+    ) -> AsyncIterator[dict[str, Any]]:
         """
         Processa stream de áudio
 
@@ -180,7 +182,7 @@ class WhisperProcessor:
         self._initialized = False
         self.logger.info("Whisper Processor limpo")
 
-    def get_info(self) -> Dict[str, Any]:
+    def get_info(self) -> dict[str, Any]:
         """
         Retorna informações sobre o processor
 

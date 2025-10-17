@@ -10,15 +10,16 @@ Capabilities:
 - STREAMING
 """
 
-from datetime import datetime
-from typing import Optional, AsyncIterator
-import numpy as np
 import logging
+from collections.abc import AsyncIterator
+from datetime import datetime
 
-from .base import WhisperBackend, BackendError, BackendNotAvailableError
-from ..models.capability import Capability, BackendInfo
+import numpy as np
+
+from ..models.capability import BackendInfo, Capability
 from ..models.result import TranscriptionResult
-from ..utils.platform import Platform, detect_platform, PlatformNotSupportedError
+from ..utils.platform import Platform, PlatformNotSupportedError, detect_platform
+from .base import WhisperBackend
 
 
 class SeamlessM4TBackend(WhisperBackend):
@@ -54,7 +55,7 @@ class SeamlessM4TBackend(WhisperBackend):
         self._initialized = True
 
     async def transcribe_chunk(
-        self, audio: np.ndarray, context: Optional[str] = None
+        self, audio: np.ndarray, context: str | None = None
     ) -> TranscriptionResult:
         """Transcreve com traducao"""
         # Placeholder

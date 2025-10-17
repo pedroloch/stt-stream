@@ -17,11 +17,12 @@ Instalação:
 Licença: CC-BY-NC-4.0 (não comercial)
 """
 
-import numpy as np
-from typing import Optional, Dict, Any
 import logging
-from datetime import datetime
 import time
+from datetime import datetime
+from typing import Any
+
+import numpy as np
 
 try:
     from transformers import pipeline
@@ -29,10 +30,10 @@ try:
 except ImportError:
     CRISPER_AVAILABLE = False
 
-from .base import WhisperBackend
-from ..models.result import TranscriptionResult, Segment, Word
 from ..models.capability import BackendInfo, Capability, Platform
-from ..utils.platform import detect_platform, PlatformNotSupportedError
+from ..models.result import Segment, TranscriptionResult, Word
+from ..utils.platform import PlatformNotSupportedError, detect_platform
+from .base import WhisperBackend
 
 logger = logging.getLogger(__name__)
 
@@ -167,7 +168,7 @@ class CrisperWhisperBackend(WhisperBackend):
     async def transcribe_chunk(
         self,
         audio: np.ndarray,
-        context: Optional[str] = None
+        context: str | None = None
     ) -> TranscriptionResult:
         """
         Transcreve chunk de áudio com detecção de fillers
@@ -324,7 +325,7 @@ class CrisperWhisperBackend(WhisperBackend):
         self._initialized = False
         logger.info("CrisperWhisper limpo")
 
-    def get_backend_info(self) -> Dict[str, Any]:
+    def get_backend_info(self) -> dict[str, Any]:
         """
         Retorna informações sobre o backend
 
