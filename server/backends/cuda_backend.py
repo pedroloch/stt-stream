@@ -15,7 +15,8 @@ from .base import (
     BackendError,
     BackendNotAvailableError,
     ModelNotFoundError,
-    TranscriptionError
+    TranscriptionError,
+    MODEL_INIT_PARAMS
 )
 
 
@@ -65,6 +66,13 @@ class CUDABackend(WhisperBackend):
             # Extrair device_index do device string (cuda:0 → 0)
             device_index = int(self.device.split(":")[-1]) if ":" in self.device else 0
 
+            # Filtrar kwargs: apenas parâmetros válidos para o construtor WhisperModel
+            # Parâmetros de transcrição (beam_size, temperature, etc) são usados em transcribe_chunk()
+            model_init_kwargs = {
+                k: v for k, v in self.kwargs.items()
+                if k in MODEL_INIT_PARAMS
+            }
+
             # Carregar modelo
             self.model_instance = WhisperModel(
                 self.model,
@@ -72,7 +80,7 @@ class CUDABackend(WhisperBackend):
                 device_index=device_index,
                 compute_type=self.compute_type,
                 download_root=str(self.models_dir),
-                **self.kwargs
+                **model_init_kwargs
             )
 
             self._initialized = True

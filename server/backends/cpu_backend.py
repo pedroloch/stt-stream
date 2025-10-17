@@ -15,7 +15,8 @@ from .base import (
     BackendError,
     BackendNotAvailableError,
     ModelNotFoundError,
-    TranscriptionError
+    TranscriptionError,
+    MODEL_INIT_PARAMS
 )
 
 
@@ -54,6 +55,13 @@ class CPUBackend(WhisperBackend):
             self.models_dir.mkdir(parents=True, exist_ok=True)
             self.cache_dir.mkdir(parents=True, exist_ok=True)
 
+            # Filtrar kwargs: apenas parâmetros válidos para o construtor WhisperModel
+            # Parâmetros de transcrição (beam_size, temperature, etc) são usados em transcribe_chunk()
+            model_init_kwargs = {
+                k: v for k, v in self.kwargs.items()
+                if k in MODEL_INIT_PARAMS
+            }
+
             # Carregar modelo
             # faster-whisper baixa automaticamente se necessário
             self.model_instance = WhisperModel(
@@ -61,7 +69,7 @@ class CPUBackend(WhisperBackend):
                 device="cpu",
                 compute_type=self.compute_type,
                 download_root=str(self.models_dir),
-                **self.kwargs
+                **model_init_kwargs
             )
 
             self._initialized = True

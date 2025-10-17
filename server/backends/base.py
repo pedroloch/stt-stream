@@ -122,6 +122,27 @@ class WhisperBackend(ABC):
         pass
 
 
+# Constantes para separar parâmetros de modelo vs transcrição
+# Parâmetros aceitos pelo construtor WhisperModel (ctranslate2)
+MODEL_INIT_PARAMS = {
+    'inter_threads',
+    'intra_threads',
+    'max_queued_batches',
+    'flash_attention',
+    'tensor_parallel',
+    'files'
+}
+
+# Parâmetros aceitos pelo método transcribe()
+TRANSCRIBE_PARAMS = {
+    'beam_size',
+    'best_of',
+    'temperature',
+    'condition_on_previous_text',
+    'use_vad'
+}
+
+
 class BackendError(Exception):
     """Erro genérico de backend"""
     pass
