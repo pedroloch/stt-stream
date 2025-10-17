@@ -1,117 +1,33 @@
 # Configuração do Cliente Whisper Stream
-# Este é um arquivo de exemplo - copie para config.yaml e ajuste conforme necessário
+# Cliente simples que consome o servidor Python
 
-# Configurações do Servidor Remoto
-# O servidor Python roda separadamente (pode ser em outra máquina com GPU)
+# Servidor Python (pode estar em outra máquina)
 server:
-  # URL do servidor WebSocket (pode ser remoto)
+  # URL do WebSocket (ajuste se servidor estiver remoto)
   url: "ws://localhost:9090/ws"
 
   # Health check endpoint
   health_url: "http://localhost:9090/health"
 
-  # Reconnection settings
-  auto_reconnect: true
-  reconnect_delay: 2000  # milliseconds
-  max_reconnect_attempts: 5
-  connection_timeout: 10000  # milliseconds
-
-# Configurações de Áudio (captura local)
+# Configurações de Áudio (captura local via sox)
 audio:
-  # Taxa de amostragem (deve corresponder ao que o servidor espera)
+  # Taxa de amostragem (deve corresponder ao servidor)
   sample_rate: 16000
 
-  # Canais de áudio (1 = mono, 2 = stereo)
+  # Canais de áudio (1 = mono)
   channels: 1
 
-  # Duração de cada chunk enviado (em milliseconds)
-  chunk_duration: 1000
-
-  # Device de entrada (default ou ID específico)
-  # Use "default" para microfone padrão
-  device: "default"
-
-  # Formato de áudio enviado ao servidor
-  # Options: "raw", "wav"
-  format: "raw"
-
-# Configurações de Display (Terminal UI)
+# Configurações de Display (Terminal)
 display:
-  # Mostrar transcrições parciais (enquanto ainda está processando)
+  # Mostrar transcrições parciais (enquanto processa)
   show_partial: true
 
-  # Mostrar timestamps nas transcrições
+  # Mostrar timestamps
   show_timestamps: true
 
-  # Formato do timestamp (HH:mm:ss, HH:mm, etc)
-  timestamp_format: "HH:mm:ss"
-
   # Cores do terminal
-  # Opções: black, red, green, yellow, blue, magenta, cyan, white, gray
   colors:
-    partial: "cyan"      # Cor para transcrições parciais
-    final: "green"       # Cor para transcrições finais
-    timestamp: "gray"    # Cor dos timestamps
-    error: "red"         # Cor de mensagens de erro
-    info: "yellow"       # Cor de mensagens informativas
-    success: "green"     # Cor de mensagens de sucesso
-
-  # Limpar tela ao iniciar
-  clear_screen: false
-
-  # Auto-scroll quando há muitas linhas
-  auto_scroll: true
-
-  # Número máximo de linhas mantidas em memória
-  max_lines: 100
-
-  # Mostrar indicador visual quando aguardando fala
-  show_listening_indicator: true
-
-# Configurações de Logging
-logging:
-  # Nível de log: debug, info, warning, error
-  level: "info"
-
-  # Salvar logs em arquivo
-  save_to_file: true
-
-  # Diretório de logs
-  log_dir: "./logs"
-
-  # Formato do log
-  format: "pretty"  # pretty ou json
-
-# Configurações de Performance
-performance:
-  # Buffer size para áudio (número de chunks)
-  audio_buffer_size: 10
-
-  # Timeout para envio de áudio (milliseconds)
-  send_timeout: 5000
-
-# Debug mode
-debug:
-  # Salvar áudio capturado para debug
-  save_audio: false
-
-  # Diretório para áudio de debug
-  audio_output_dir: "./debug/audio"
-
-  # Modo verbose (mais logs)
-  verbose: false
-
-  # Mostrar estatísticas de performance
-  show_stats: false
-
-# Atalhos de teclado
-shortcuts:
-  # Ativar/desativar atalhos
-  enabled: true
-
-  # Ctrl+C sempre encerra o programa
-  # Outras teclas:
-  quit: "q"           # Sair do programa
-  pause: "p"          # Pausar/retomar captura
-  clear: "c"          # Limpar tela
-  toggle_partial: "t" # Toggle mostrar parciais
+    partial: "cyan"      # Transcrições em progresso
+    final: "green"       # Transcrições finais
+    error: "red"         # Mensagens de erro
+    info: "yellow"       # Mensagens informativas
