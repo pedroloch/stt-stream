@@ -138,25 +138,29 @@ export interface Config {
 // ============================================
 
 /**
- * Estado da conexão
+ * Estado da conexão (substitui enum por const as const)
  */
-export enum ConnectionStatus {
-  Disconnected = "disconnected",
-  Connecting = "connecting",
-  Connected = "connected",
-  Reconnecting = "reconnecting",
-  Error = "error",
-}
+export const ConnectionStatus = {
+  Disconnected: "disconnected",
+  Connecting: "connecting",
+  Connected: "connected",
+  Reconnecting: "reconnecting",
+  Error: "error",
+} as const;
+
+export type ConnectionStatus = typeof ConnectionStatus[keyof typeof ConnectionStatus];
 
 /**
- * Estado do áudio
+ * Estado do áudio (substitui enum por const as const)
  */
-export enum AudioStatus {
-  Inactive = "inactive",
-  Starting = "starting",
-  Active = "active",
-  Error = "error",
-}
+export const AudioStatus = {
+  Inactive: "inactive",
+  Starting: "starting",
+  Active: "active",
+  Error: "error",
+} as const;
+
+export type AudioStatus = typeof AudioStatus[keyof typeof AudioStatus];
 
 /**
  * Estado da aplicação

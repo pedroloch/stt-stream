@@ -19,15 +19,16 @@ import chalk from "chalk";
 import { spawn, type ChildProcess } from "child_process";
 import { readFileSync, existsSync } from "fs";
 import { parse } from "yaml";
-import type {
-  Config,
-  AnyWebSocketMessage,
-  TranscriptionMessage,
-  ConnectedMessage,
-  ErrorMessage,
+import {
   ConnectionStatus,
   AudioStatus,
-  MessageHistoryItem,
+  type AnyWebSocketMessage,
+  type Config,
+  type ConnectedMessage,
+  type ErrorMessage,
+  type MessageHistoryItem,
+  type TranscriptionMessage,
+
 } from "./types";
 
 class WhisperStreamClient {
@@ -38,7 +39,7 @@ class WhisperStreamClient {
   private maxReconnectAttempts = 5;
 
   // Estado
-  private connectionStatus: ConnectionStatus = ConnectionStatus.Disconnected;
+  private connectionStatus = ConnectionStatus.Disconnected;
   private audioStatus: AudioStatus = AudioStatus.Inactive;
 
   // Filtro de duplicatas
