@@ -98,7 +98,7 @@ def has_nvidia_gpu() -> bool:
     """
     # Tentativa 1: Usar torch.cuda se disponível
     try:
-        import torch
+        import torch  # type: ignore
         return torch.cuda.is_available()
     except ImportError:
         pass  # torch não instalado, tentar nvidia-smi

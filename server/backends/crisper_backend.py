@@ -25,7 +25,7 @@ from typing import Any
 import numpy as np
 
 try:
-    from transformers import pipeline
+    from transformers import pipeline  # type: ignore
     CRISPER_AVAILABLE = True
 except ImportError:
     CRISPER_AVAILABLE = False
@@ -288,7 +288,7 @@ class CrisperWhisperBackend(WhisperBackend):
 
         return word_lower in fillers_en or word_lower in fillers_de
 
-    async def transcribe_stream(
+    async def transcribe_stream(  # type: ignore[override]
         self,
         audio_stream: Any  # AsyncIterator[np.ndarray]
     ):

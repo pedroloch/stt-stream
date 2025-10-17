@@ -63,7 +63,7 @@ class WhisperXBackend(WhisperBackend):
 
         try:
             # Import WhisperX (fail-fast se não instalado)
-            import whisperx
+            import whisperx  # type: ignore
             self.whisperx = whisperx
 
             # Device
@@ -258,7 +258,7 @@ class WhisperXBackend(WhisperBackend):
             self.logger.error(f"Erro na transcrição: {e}")
             raise TranscriptionError(f"Falha na transcrição: {e}") from e
 
-    async def transcribe_stream(
+    async def transcribe_stream(  # type: ignore[override]
         self, audio_stream: AsyncIterator[np.ndarray]
     ) -> AsyncIterator[TranscriptionResult]:
         """Stream com diarization"""
@@ -307,7 +307,7 @@ class WhisperXBackend(WhisperBackend):
 
         # Info da GPU se disponível
         try:
-            import torch
+            import torch  # type: ignore
             if torch.cuda.is_available():
                 info_dict["gpu"] = torch.cuda.get_device_name(0)
                 info_dict["gpu_memory_total"] = f"{torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB"

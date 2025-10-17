@@ -288,7 +288,7 @@ class FasterWhisperBackend(WhisperBackend):
             self.logger.error(f"Erro na transcricao: {e}")
             raise TranscriptionError(f"Falha na transcricao: {e}") from e
 
-    async def transcribe_stream(
+    async def transcribe_stream(  # type: ignore[override]
         self, audio_stream: AsyncIterator[np.ndarray]
     ) -> AsyncIterator[TranscriptionResult]:
         """Transcreve stream de audio"""

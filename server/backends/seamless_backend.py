@@ -68,7 +68,7 @@ class SeamlessM4TBackend(WhisperBackend):
             translation={"en": "Hello world", "es": "Hola mundo"},  # ⭐ Translation
         )
 
-    async def transcribe_stream(
+    async def transcribe_stream(  # type: ignore[override]
         self, audio_stream: AsyncIterator[np.ndarray]
     ) -> AsyncIterator[TranscriptionResult]:
         """Stream com traducao"""

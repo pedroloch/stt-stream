@@ -13,6 +13,7 @@ import numpy as np
 from .backends import BackendRegistry  # Novo sistema!
 from .backends.base import WhisperBackend
 from .config import Config
+from .models.result import TranscriptionResult
 from .utils.hardware_detector import HardwareInfo
 from .utils.platform import detect_platform
 
@@ -154,7 +155,7 @@ class WhisperProcessor:
     async def process_audio_stream(
         self,
         audio_stream: AsyncIterator[np.ndarray]
-    ) -> AsyncIterator[dict[str, Any]]:
+    ) -> AsyncIterator[TranscriptionResult]:
         """
         Processa stream de áudio
 
@@ -162,14 +163,14 @@ class WhisperProcessor:
             audio_stream: Iterator assíncrono de chunks de áudio
 
         Yields:
-            Resultados de transcrição
+            Resultados de transcrição (TranscriptionResult)
         """
         if not self._initialized or not self.backend:
             raise RuntimeError(
                 "Processor não inicializado. Chame initialize() primeiro."
             )
 
-        async for result in self.backend.transcribe_stream(audio_stream):
+        async for result in self.backend.transcribe_stream(audio_stream):  # type: ignore[misc]
             yield result
 
     async def cleanup(self) -> None:

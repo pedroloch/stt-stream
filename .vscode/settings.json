@@ -1,7 +1,16 @@
 {
-  // Python Environment
-  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+  // Python Environment - Poetry + Pyenv (3.12)
+  // Usa Poetry como único interpreter, sem descoberta automática
+  "python.defaultInterpreterPath": "/Users/pedro/Library/Caches/pypoetry/virtualenvs/whisper-stream-server-am06cuK3-py3.12/bin/python",
   "python.terminal.activateEnvironment": true,
+  "python.terminal.executeInFileDir": true,
+  "python.linting.enabled": true,
+
+  // Disable automatic interpreter discovery (only use Poetry)
+  "python.venvPath": "",
+  "python.condaPath": "",
+  "python.pipenvPath": "",
+  "python.pyenvPath": "",
 
   // Formatting
   "editor.formatOnSave": true,
@@ -21,8 +30,7 @@
   "ruff.fixAll": true,
   "ruff.lint.run": "onSave",
 
-  // Type Checking - Pyright (via Pylance)
-  "python.analysis.typeCheckingMode": "standard",
+  // Type Checking - Pyright (configured in pyproject.toml)
   "python.analysis.diagnosticMode": "workspace",
   "python.analysis.autoImportCompletions": true,
   "python.analysis.inlayHints.functionReturnTypes": true,

@@ -186,7 +186,8 @@ class BackendRegistry:
                 f"💡 Suggestion: Use one of the backends above, or deploy on a different platform."
             )
 
-        return backend_class
+        # Criar instância do backend com config
+        return backend_class(**config)
 
 
 # Função utilitária para migração gradual do factory

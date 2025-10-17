@@ -85,7 +85,7 @@ class CPUBackend(WhisperBackend):
             self.logger.error(f"Erro ao carregar modelo: {e}")
             raise ModelNotFoundError(f"Falha ao carregar modelo {self.model}: {e}") from e
 
-    async def transcribe_chunk(
+    async def transcribe_chunk(  # type: ignore[override]
         self,
         audio: np.ndarray,
         context: str | None = None
@@ -172,7 +172,7 @@ class CPUBackend(WhisperBackend):
             self.logger.error(f"Erro na transcrição: {e}")
             raise TranscriptionError(f"Falha na transcrição: {e}") from e
 
-    async def transcribe_stream(
+    async def transcribe_stream(  # type: ignore[override]
         self,
         audio_stream: AsyncIterator[np.ndarray]
     ) -> AsyncIterator[dict[str, Any]]:

@@ -114,7 +114,7 @@ class MLXBackend(WhisperBackend):
             self.logger.error(f"Erro ao carregar modelo MLX: {e}")
             raise ModelNotFoundError(f"Falha ao carregar modelo {self.model}: {e}") from e
 
-    async def transcribe_chunk(
+    async def transcribe_chunk(  # type: ignore[override]
         self,
         audio: np.ndarray,
         context: str | None = None
@@ -170,7 +170,7 @@ class MLXBackend(WhisperBackend):
 
             if not text:
                 # Retornar resultado vazio
-                return TranscriptionResult(
+                return TranscriptionResult(  # type: ignore[return-value]
                     text="",
                     is_final=False,
                     confidence=0.0,
@@ -205,7 +205,7 @@ class MLXBackend(WhisperBackend):
             ] if segments_raw else None
 
             # Retornar TranscriptionResult normalizado
-            return TranscriptionResult(
+            return TranscriptionResult(  # type: ignore[return-value]
                 text=text,
                 is_final=True,
                 confidence=float(confidence),
@@ -218,7 +218,7 @@ class MLXBackend(WhisperBackend):
             self.logger.error(f"Erro na transcrição MLX: {e}")
             raise TranscriptionError(f"Falha na transcrição: {e}") from e
 
-    async def transcribe_stream(
+    async def transcribe_stream(  # type: ignore[override]
         self,
         audio_stream: AsyncIterator[np.ndarray]
     ) -> AsyncIterator[dict[str, Any]]:

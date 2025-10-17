@@ -100,7 +100,7 @@ class CUDABackend(WhisperBackend):
     def _check_cuda_available(self) -> bool:
         """Verifica se CUDA está disponível"""
         try:
-            import torch
+            import torch  # type: ignore
             return torch.cuda.is_available()
         except ImportError:
             self.logger.warning("PyTorch não instalado, não é possível verificar CUDA")
@@ -119,7 +119,7 @@ class CUDABackend(WhisperBackend):
     def _log_gpu_memory(self) -> None:
         """Log de uso de memória GPU"""
         try:
-            import torch
+            import torch  # type: ignore
             if torch.cuda.is_available():
                 device_idx = int(self.device.split(":")[-1]) if ":" in self.device else 0
                 allocated = torch.cuda.memory_allocated(device_idx) / 1024**3  # GB
@@ -128,7 +128,7 @@ class CUDABackend(WhisperBackend):
         except Exception as e:
             self.logger.debug(f"Não foi possível obter info de memória GPU: {e}")
 
-    async def transcribe_chunk(
+    async def transcribe_chunk(  # type: ignore[override]
         self,
         audio: np.ndarray,
         context: str | None = None
@@ -213,7 +213,7 @@ class CUDABackend(WhisperBackend):
             self.logger.error(f"Erro na transcrição CUDA: {e}")
             raise TranscriptionError(f"Falha na transcrição: {e}") from e
 
-    async def transcribe_stream(
+    async def transcribe_stream(  # type: ignore[override]
         self,
         audio_stream: AsyncIterator[np.ndarray]
     ) -> AsyncIterator[dict[str, Any]]:

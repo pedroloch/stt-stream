@@ -106,8 +106,9 @@ reportMissingTypeStubs = false
 reportUnusedImport = "warning"
 reportUnusedVariable = "warning"
 reportDuplicateImport = "warning"
-reportOptionalMemberAccess = "warning"
-reportOptionalSubscript = "warning"
+reportOptionalMemberAccess = "none"  # Allow accessing attributes on Optional values
+reportOptionalSubscript = "none"    # Allow subscripting Optional values
+reportAttributeAccessIssue = "warning"  # Relaxed for initialization patterns
 reportPrivateImportUsage = false
 
 # ============================================

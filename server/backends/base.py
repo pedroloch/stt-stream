@@ -16,6 +16,7 @@ from typing import Any
 import numpy as np
 
 from ..models.capability import BackendInfo
+from ..models.result import TranscriptionResult
 
 
 class WhisperBackend(ABC):
@@ -89,7 +90,7 @@ class WhisperBackend(ABC):
         self,
         audio: np.ndarray,
         context: str | None = None
-    ) -> dict[str, Any]:
+    ) -> TranscriptionResult:
         """
         Transcreve um chunk de áudio
 
@@ -98,14 +99,12 @@ class WhisperBackend(ABC):
             context: Contexto da transcrição anterior (para continuidade)
 
         Returns:
-            Dicionário com resultado:
-            {
-                "text": str,              # Texto transcrito
-                "is_final": bool,         # Se é transcrição final ou parcial
-                "language": str,          # Idioma detectado
-                "confidence": float,      # Confiança (0-1)
-                "segments": list,         # Segmentos detalhados (opcional)
-            }
+            TranscriptionResult com:
+                - text: Texto transcrito
+                - is_final: Se é transcrição final ou parcial
+                - language: Idioma detectado
+                - confidence: Confiança (0-1)
+                - segments: Segmentos detalhados (opcional)
         """
         pass
 
@@ -113,7 +112,7 @@ class WhisperBackend(ABC):
     async def transcribe_stream(
         self,
         audio_stream: AsyncIterator[np.ndarray]
-    ) -> AsyncIterator[dict[str, Any]]:
+    ) -> AsyncIterator[TranscriptionResult]:
         """
         Transcreve stream de áudio (chunks contínuos)
 
@@ -121,7 +120,7 @@ class WhisperBackend(ABC):
             audio_stream: Iterator assíncrono de chunks de áudio
 
         Yields:
-            Dicionários com resultados parciais e finais
+            TranscriptionResult com resultados parciais e finais
         """
         pass
 
