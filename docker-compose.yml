@@ -1,0 +1,136 @@
+# Docker Compose para Whisper Stream Server
+#
+# Facilita testes locais com diferentes backends
+#
+# Uso:
+#   docker-compose up faster-whisper    # Backend universal
+#   docker-compose up crisper-whisper   # Verbatim transcription
+#   docker-compose up whisperx          # Diarization (CUDA only)
+
+version: '3.8'
+
+services:
+  # Backend: Faster-Whisper (Universal)
+  faster-whisper:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        BACKEND: faster-whisper
+        CUDA_VERSION: 12.1.0
+    image: whisper-stream:faster-whisper
+    container_name: whisper-faster
+    ports:
+      - "9090:9090"
+    environment:
+      - WHISPER_BACKEND=faster-whisper
+      - WHISPER_MODEL=base
+      - WHISPER_LANGUAGE=pt
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=9090
+      - LOG_LEVEL=info
+    volumes:
+      - ./models:/app/models
+      - ./cache:/app/cache
+      - ./logs:/app/logs
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    restart: unless-stopped
+
+  # Backend: CrisperWhisper (Verbatim)
+  crisper-whisper:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        BACKEND: crisper-whisper
+        CUDA_VERSION: 12.1.0
+    image: whisper-stream:crisper-whisper
+    container_name: whisper-crisper
+    ports:
+      - "9091:9090"
+    environment:
+      - WHISPER_BACKEND=crisper-whisper
+      - WHISPER_MODEL=large-v3
+      - WHISPER_LANGUAGE=en
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=9090
+      - LOG_LEVEL=info
+    volumes:
+      - ./models:/app/models
+      - ./cache:/app/cache
+      - ./logs:/app/logs
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    restart: unless-stopped
+
+  # Backend: WhisperX (Diarization)
+  whisperx:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        BACKEND: whisperx
+        CUDA_VERSION: 12.1.0
+    image: whisper-stream:whisperx
+    container_name: whisper-x
+    ports:
+      - "9092:9090"
+    environment:
+      - WHISPER_BACKEND=whisperx
+      - WHISPER_MODEL=large-v3
+      - WHISPER_LANGUAGE=pt
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=9090
+      - LOG_LEVEL=info
+    volumes:
+      - ./models:/app/models
+      - ./cache:/app/cache
+      - ./logs:/app/logs
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    restart: unless-stopped
+
+  # Backend: MLX (Apple Silicon - CPU only)
+  mlx:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        BACKEND: mlx
+    image: whisper-stream:mlx
+    container_name: whisper-mlx
+    ports:
+      - "9093:9090"
+    environment:
+      - WHISPER_BACKEND=mlx
+      - WHISPER_MODEL=base
+      - WHISPER_LANGUAGE=pt
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=9090
+      - LOG_LEVEL=info
+    volumes:
+      - ./models:/app/models
+      - ./cache:/app/cache
+      - ./logs:/app/logs
+    restart: unless-stopped
+
+volumes:
+  models:
+  cache:
+  logs:
