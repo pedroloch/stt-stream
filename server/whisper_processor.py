@@ -127,7 +127,7 @@ class WhisperProcessor:
         self,
         audio: np.ndarray,
         context: Optional[str] = None
-    ) -> Dict[str, Any]:
+    ):
         """
         Processa um chunk de áudio
 
@@ -136,14 +136,7 @@ class WhisperProcessor:
             context: Contexto da transcrição anterior
 
         Returns:
-            Resultado da transcrição:
-            {
-                "text": str,
-                "is_final": bool,
-                "language": str,
-                "confidence": float,
-                "segments": list
-            }
+            TranscriptionResult object
 
         Raises:
             RuntimeError: Se processor não foi inicializado
@@ -153,9 +146,9 @@ class WhisperProcessor:
                 "Processor não inicializado. Chame initialize() primeiro."
             )
 
-        # Backend retorna TranscriptionResult, converter para dict WebSocket
+        # Backend retorna TranscriptionResult diretamente
         result = await self.backend.transcribe_chunk(audio, context)
-        return result.to_websocket_dict()
+        return result
 
     async def process_audio_stream(
         self,

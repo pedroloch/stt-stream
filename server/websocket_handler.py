@@ -13,6 +13,7 @@ from aiohttp import web, WSMsgType
 from .whisper_processor import WhisperProcessor
 from .config import Config
 from .audio import AudioConverter
+from .serializers import WebSocketSerializer
 from .constants import DEFAULT_SAMPLE_RATE
 
 
@@ -73,11 +74,11 @@ class WebSocketHandler:
             return ws
 
         # Enviar mensagem de boas-vindas
-        await ws.send_json({
-            "type": "connected",
-            "message": "Conectado ao servidor Whisper Stream",
-            "server_info": self.processor.get_info()
-        })
+        welcome_msg = WebSocketSerializer.serialize_connected(
+            server_info=self.processor.get_info(),
+            session_id=str(client_id)
+        )
+        await ws.send_json(welcome_msg)
 
         try:
             # Loop principal de mensagens
@@ -136,25 +137,27 @@ class WebSocketHandler:
                     f"rms: {stats['rms']:.3f}"
                 )
 
-            # Processar com Whisper
+            # Processar com Whisper (retorna TranscriptionResult)
             result = await self.processor.process_audio(audio_float)
 
             # Enviar resultado se houver texto
-            if result["text"]:
-                # Enviar resultado completo (já vem do to_websocket_dict() com todos os campos)
-                await ws.send_json(result)
+            if result.text:
+                # Serializar para WebSocket
+                ws_message = WebSocketSerializer.serialize_transcription(result)
+                await ws.send_json(ws_message)
 
                 self.logger.debug(
-                    f"[{client_id}] Transcrição: '{result['text'][:50]}...' "
-                    f"(conf: {result['confidence']:.2f})"
+                    f"[{client_id}] Transcrição: '{result.text[:50]}...' "
+                    f"(conf: {result.confidence:.2f})"
                 )
 
         except Exception as e:
             self.logger.error(f"Erro ao processar áudio [{client_id}]: {e}")
-            await ws.send_json({
-                "type": "error",
-                "message": f"Erro ao processar áudio: {str(e)}"
-            })
+            error_msg = WebSocketSerializer.serialize_error(
+                f"Erro ao processar áudio: {str(e)}",
+                code="PROCESSING_ERROR"
+            )
+            await ws.send_json(error_msg)
 
     async def _handle_text(
         self,
@@ -178,14 +181,13 @@ class WebSocketHandler:
 
             if msg_type == "ping":
                 # Responder pong
-                await ws.send_json({"type": "pong"})
+                pong_msg = WebSocketSerializer.serialize_pong()
+                await ws.send_json(pong_msg)
 
             elif msg_type == "get_info":
                 # Enviar informações do servidor
-                await ws.send_json({
-                    "type": "info",
-                    "data": self.processor.get_info()
-                })
+                info_msg = WebSocketSerializer.serialize_info(self.processor.get_info())
+                await ws.send_json(info_msg)
 
             elif msg_type == "reset_context":
                 # Reset de contexto (futuro)
@@ -196,24 +198,21 @@ class WebSocketHandler:
 
             else:
                 self.logger.warning(f"[{client_id}] Tipo de mensagem desconhecido: {msg_type}")
-                await ws.send_json({
-                    "type": "error",
-                    "message": f"Tipo de mensagem desconhecido: {msg_type}"
-                })
+                error_msg = WebSocketSerializer.serialize_error(
+                    f"Tipo de mensagem desconhecido: {msg_type}",
+                    code="UNKNOWN_MESSAGE_TYPE"
+                )
+                await ws.send_json(error_msg)
 
         except json.JSONDecodeError as e:
             self.logger.error(f"[{client_id}] JSON inválido: {e}")
-            await ws.send_json({
-                "type": "error",
-                "message": "JSON inválido"
-            })
+            error_msg = WebSocketSerializer.serialize_error("JSON inválido", code="INVALID_JSON")
+            await ws.send_json(error_msg)
 
         except Exception as e:
             self.logger.error(f"[{client_id}] Erro ao processar mensagem: {e}")
-            await ws.send_json({
-                "type": "error",
-                "message": str(e)
-            })
+            error_msg = WebSocketSerializer.serialize_error(str(e), code="MESSAGE_ERROR")
+            await ws.send_json(error_msg)
 
     def _get_timestamp(self) -> str:
         """Retorna timestamp atual em formato ISO"""

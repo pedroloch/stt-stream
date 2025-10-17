@@ -20,6 +20,7 @@ from aiohttp import web
 from .config import Config
 from .whisper_processor import WhisperProcessor
 from .websocket_handler import WebSocketHandler
+from .serializers import WebSocketSerializer
 from .utils.logger import setup_logger
 
 
@@ -184,10 +185,8 @@ class WhisperServer:
 
         # Fechar conexões WebSocket
         if self.handler:
-            await self.handler.broadcast({
-                "type": "server_shutdown",
-                "message": "Servidor está encerrando"
-            })
+            shutdown_msg = WebSocketSerializer.serialize_server_shutdown()
+            await self.handler.broadcast(shutdown_msg)
 
         # Parar site e runner
         if self.site:
