@@ -39,10 +39,16 @@ audio:
 # Configurações de Display (Terminal)
 display:
   # Mostrar transcrições parciais (enquanto processa)
-  show_partial: false
+  show_partial: true
 
   # Mostrar timestamps
   show_timestamps: true
+
+  # Número máximo de mensagens no histórico
+  max_history: 50
+
+  # Largura para word wrap (quebra de linha automática)
+  word_wrap_width: 80
 
   # Cores do terminal
   colors:
@@ -50,3 +56,16 @@ display:
     final: "green"       # Transcrições finais
     error: "red"         # Mensagens de erro
     info: "yellow"       # Mensagens informativas
+    debug: "gray"        # Mensagens de debug
+    header: "cyan"       # Header do cliente
+
+# Configurações de Debug (Opcional)
+debug:
+  # Ativar modo debug (também pode usar DEBUG=1 bun start)
+  enabled: false
+
+  # Mostrar JSON completo das mensagens WebSocket
+  show_json: true
+
+  # Mostrar estatísticas de áudio
+  show_audio_stats: false
