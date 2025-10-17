@@ -1,63 +1,33 @@
 {
-  // Python Environment - Poetry + Pyenv (3.12)
-  // Usa Poetry como único interpreter, sem descoberta automática
-  "python.defaultInterpreterPath": "/Users/pedro/Library/Caches/pypoetry/virtualenvs/whisper-stream-server-am06cuK3-py3.12/bin/python",
-  "python.terminal.activateEnvironment": true,
-  "python.terminal.executeInFileDir": true,
-  "python.linting.enabled": true,
+  // Root workspace - TypeScript/Bun focused
+  // For Python development: open server/ folder separately
 
-  // Disable automatic interpreter discovery (only use Poetry)
-  "python.venvPath": "",
-  "python.condaPath": "",
-  "python.pipenvPath": "",
-  "python.pyenvPath": "",
-
-  // Formatting
+  // General Editor
   "editor.formatOnSave": true,
   "editor.formatOnPaste": false,
-  "python.formatting.provider": "none",
-  "[python]": {
-    "editor.defaultFormatter": "charliermarsh.ruff",
-    "editor.codeActionsOnSave": {
-      "source.fixAll": "explicit",
-      "source.organizeImports": "explicit"
-    }
+  "editor.rulers": [80, 100],
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+
+  // TypeScript
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
   },
 
-  // Linting - Ruff (replaces flake8, isort, etc)
-  "ruff.enable": true,
-  "ruff.organizeImports": true,
-  "ruff.fixAll": true,
-  "ruff.lint.run": "onSave",
-
-  // Type Checking - Pyright (configured in pyproject.toml)
-  "python.analysis.diagnosticMode": "workspace",
-  "python.analysis.autoImportCompletions": true,
-  "python.analysis.inlayHints.functionReturnTypes": true,
-  "python.analysis.inlayHints.variableTypes": true,
-
-  // Testing
-  "python.testing.pytestEnabled": true,
-  "python.testing.unittestEnabled": false,
-  "python.testing.pytestArgs": [
-    "tests"
-  ],
-
-  // File Associations
+  // Exclude patterns (both TS and Python)
   "files.exclude": {
+    "**/node_modules": true,
     "**/__pycache__": true,
     "**/*.pyc": true,
     "**/.pytest_cache": true,
     "**/.ruff_cache": true,
     "**/*.egg-info": true,
-    "**/pyrightconfig.json": false
+    "**/.bun": true
   },
 
-  // Editor
-  "editor.rulers": [88, 120],
-  "files.trimTrailingWhitespace": true,
-  "files.insertFinalNewline": true,
-
-  // Ruff configuration
-  "ruff.lineLength": 100
+  // Disable Python in root (use server/ folder for Python)
+  "python.linting.enabled": false,
+  "python.analysis.enabled": false
 }
+

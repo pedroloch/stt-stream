@@ -101,8 +101,8 @@ pythonPlatform = "All"
 typeCheckingMode = "standard"  # off | basic | standard | strict
 
 # Report settings
-reportMissingImports = true
-reportMissingTypeStubs = false
+reportMissingImports = false  # Allow optional imports (torch, mlx_whisper, crisper, etc)
+reportMissingTypeStubs = false  # Don't require type stubs for all packages
 reportUnusedImport = "warning"
 reportUnusedVariable = "warning"
 reportDuplicateImport = "warning"

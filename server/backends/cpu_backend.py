@@ -36,7 +36,7 @@ class CPUBackend(WhisperBackend):
         compute_type: str = "int8",  # int8 é melhor para CPU
         models_dir: str | None = None,
         cache_dir: str | None = None,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(model, language, compute_type, **kwargs)
         self.logger = logging.getLogger(__name__)
@@ -59,10 +59,7 @@ class CPUBackend(WhisperBackend):
 
             # Filtrar kwargs: apenas parâmetros válidos para o construtor WhisperModel
             # Parâmetros de transcrição (beam_size, temperature, etc) são usados em transcribe_chunk()
-            model_init_kwargs = {
-                k: v for k, v in self.kwargs.items()
-                if k in MODEL_INIT_PARAMS
-            }
+            model_init_kwargs = {k: v for k, v in self.kwargs.items() if k in MODEL_INIT_PARAMS}
 
             # Carregar modelo
             # faster-whisper baixa automaticamente se necessário
@@ -71,7 +68,7 @@ class CPUBackend(WhisperBackend):
                 device="cpu",
                 compute_type=self.compute_type,
                 download_root=str(self.models_dir),
-                **model_init_kwargs
+                **model_init_kwargs,
             )
 
             self._initialized = True
@@ -86,9 +83,7 @@ class CPUBackend(WhisperBackend):
             raise ModelNotFoundError(f"Falha ao carregar modelo {self.model}: {e}") from e
 
     async def transcribe_chunk(  # type: ignore[override]
-        self,
-        audio: np.ndarray,
-        context: str | None = None
+        self, audio: np.ndarray, context: str | None = None
     ) -> dict[str, Any]:
         """
         Transcreve um chunk de áudio
@@ -136,7 +131,7 @@ class CPUBackend(WhisperBackend):
                     "is_final": False,
                     "language": info.language,
                     "confidence": 0.0,
-                    "segments": []
+                    "segments": [],
                 }
 
             # Combinar texto dos segmentos
@@ -146,9 +141,11 @@ class CPUBackend(WhisperBackend):
             self.current_context = text[-500:] if len(text) > 500 else text
 
             # Calcular confiança média
-            avg_confidence = sum(
-                segment.avg_logprob for segment in segments_list
-            ) / len(segments_list) if segments_list else 0.0
+            avg_confidence = (
+                sum(segment.avg_logprob for segment in segments_list) / len(segments_list)
+                if segments_list
+                else 0.0
+            )
 
             # Converter para probabilidade aproximada (logprob → prob)
             confidence = np.exp(avg_confidence)
@@ -165,7 +162,7 @@ class CPUBackend(WhisperBackend):
                         "text": segment.text.strip(),
                     }
                     for segment in segments_list
-                ]
+                ],
             }
 
         except Exception as e:
@@ -173,8 +170,7 @@ class CPUBackend(WhisperBackend):
             raise TranscriptionError(f"Falha na transcrição: {e}") from e
 
     async def transcribe_stream(  # type: ignore[override]
-        self,
-        audio_stream: AsyncIterator[np.ndarray]
+        self, audio_stream: AsyncIterator[np.ndarray]
     ) -> AsyncIterator[dict[str, Any]]:
         """
         Transcreve stream de áudio
@@ -210,6 +206,7 @@ class CPUBackend(WhisperBackend):
         """Obtém versão do faster-whisper"""
         try:
             import faster_whisper
+
             return faster_whisper.__version__
         except (ImportError, AttributeError):
             return "unknown"
