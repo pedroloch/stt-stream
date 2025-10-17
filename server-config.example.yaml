@@ -1,0 +1,148 @@
+# Configuração do Servidor Whisper Stream
+# Este servidor roda independentemente e pode ser deployado com GPU
+
+# Configurações do Servidor WebSocket
+server:
+  # Host (0.0.0.0 para aceitar conexões externas)
+  host: "0.0.0.0"
+
+  # Porta
+  port: 9090
+
+  # Número máximo de clientes simultâneos
+  max_clients: 5
+
+  # Timeout para conexões inativas (segundos)
+  idle_timeout: 300
+
+  # CORS settings (para aceitar conexões de outros domínios)
+  cors_enabled: true
+  allowed_origins: ["*"]  # Para produção, especifique domínios
+
+# Configurações do Whisper
+whisper:
+  # Modelo: tiny, base, small, medium, large, large-v3, large-v3-turbo
+  # Modelos maiores = mais precisos mas mais lentos
+  model: "base"
+
+  # Idioma (auto para detecção automática)
+  # Exemplos: pt, en, es, fr, de, etc
+  language: "pt"
+
+  # Backend: auto, mlx, cuda, cpu
+  # auto = detecta automaticamente baseado no hardware disponível
+  # mlx = Apple Silicon (M1/M2/M3)
+  # cuda = NVIDIA GPU
+  # cpu = CPU (fallback, mais lento)
+  backend: "auto"
+
+  # Device específico (para CUDA: cuda:0, cuda:1, etc)
+  device: "auto"
+
+  # Compute type (precisão)
+  # Options: float16, int8, int8_float16
+  # float16 = melhor qualidade, mais memória
+  # int8 = mais rápido, menos memória, qualidade ligeiramente menor
+  compute_type: "float16"
+
+  # VAD (Voice Activity Detection)
+  # Detecta quando há fala e reduz processamento desnecessário
+  use_vad: true
+  vad_threshold: 0.5
+
+  # Configurações de buffer
+  # Chunk mínimo antes de processar (segundos)
+  min_chunk_size: 1.0
+
+  # Buffer trimming
+  # "segment" = corta por segmentos de fala
+  # "sentence" = tenta cortar em fim de frases
+  buffer_trimming: "segment"
+
+  # Beam size para decodificação
+  # Maior = mais preciso mas mais lento (1-5)
+  beam_size: 1
+
+  # Best of (número de candidatos)
+  # Maior = mais preciso mas mais lento
+  best_of: 1
+
+  # Temperature para sampling (0 = determinístico)
+  temperature: 0.0
+
+  # Condition on previous text (usa contexto)
+  condition_on_previous_text: true
+
+# Configurações de Performance
+performance:
+  # Número de threads para processamento
+  # auto = detecta automaticamente
+  threads: "auto"
+
+  # Batch size (quantos áudios processar em paralelo)
+  batch_size: 1
+
+  # Usar GPU se disponível (se backend=auto)
+  prefer_gpu: true
+
+# Paths
+paths:
+  # Diretório para modelos baixados
+  models_dir: "./models"
+
+  # Cache para modelos
+  cache_dir: "~/.cache/whisper-stream"
+
+# Logging
+logging:
+  # Nível: debug, info, warning, error
+  level: "info"
+
+  # Salvar em arquivo
+  save_to_file: true
+  log_dir: "./logs"
+
+  # Formato: pretty ou json
+  format: "pretty"
+
+  # Log de áudio recebido (para debug)
+  log_audio_stats: false
+
+# Hardware Detection (automático)
+# Essas configurações são detectadas automaticamente ao iniciar
+# Você pode forçar valores específicos se necessário
+hardware:
+  # Detectar automaticamente
+  auto_detect: true
+
+  # Forçar tipo específico (deixe vazio para auto)
+  # Options: apple_silicon, cuda, cpu
+  force_type: null
+
+# Security
+security:
+  # Requer autenticação (futuro)
+  require_auth: false
+
+  # API key (se require_auth=true)
+  api_key: null
+
+  # Rate limiting
+  rate_limit_enabled: false
+  max_requests_per_minute: 60
+
+# Debug
+debug:
+  # Modo verbose
+  verbose: false
+
+  # Salvar áudio recebido
+  save_received_audio: false
+  audio_output_dir: "./debug/audio"
+
+  # Profiling
+  profile: false
+  profile_output_dir: "./debug/profiles"
+
+  # Mostrar info de hardware ao iniciar
+  show_hardware_info: true
