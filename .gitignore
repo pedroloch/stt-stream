@@ -62,6 +62,8 @@ debug/
 # Config (não committar configs locais)
 config.yaml
 server-config.yaml
+.env
+.env.local
 
 # Testing
 .coverage

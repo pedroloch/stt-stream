@@ -1,0 +1,78 @@
+# Git
+.git/
+.gitignore
+.github/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.venv/
+venv/
+ENV/
+env/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs e cache
+logs/
+*.log
+cache/
+.cache/
+
+# Modelos (serão baixados no pod)
+models/
+*.gguf
+*.bin
+*.pt
+*.pth
+
+# Documentação (não necessária no container)
+docs/
+*.md
+!README.md
+
+# Testes
+tests/
+pytest.ini
+.pytest_cache/
+
+# Config local (não usar no container)
+config.yaml
+server-config.yaml
+.env
+.env.*
+
+# Node/Bun (cliente não vai no container)
+node_modules/
+bun.lockb
+package.json
+src/
+tsconfig.json
+
+# Scripts locais
+scripts/
+*.sh
+!runpod-deploy.sh
+
+# Outros
+*.sqlite
+*.db
+tmp/
+temp/
