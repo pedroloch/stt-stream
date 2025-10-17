@@ -8,6 +8,10 @@ Define quais funcionalidades cada backend suporta:
 - TRANSLATION: Tradução para outros idiomas
 - VAD: Voice Activity Detection
 - STREAMING: Processamento em streaming
+- VERBATIM: Transcrição verbatim (fillers, stutters, false starts)
+- PUNCTUATION: Punctuation flags por palavra
+- MULTILINGUAL_WORD: Language detection por palavra
+- CONFIDENCE_FRAMES: Frame-level confidence scores
 """
 
 from dataclasses import dataclass
@@ -26,6 +30,10 @@ class Capability(Enum):
     TRANSLATION = "translation"
     VAD = "vad"
     STREAMING = "streaming"
+    VERBATIM = "verbatim"  # Fillers, stutters, false starts
+    PUNCTUATION = "punctuation"  # Punctuation flags per word
+    MULTILINGUAL_WORD = "multilingual_word"  # Language detection per word
+    CONFIDENCE_FRAMES = "confidence_frames"  # Frame-level confidence
 
 
 @dataclass
