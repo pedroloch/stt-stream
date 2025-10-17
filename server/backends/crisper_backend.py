@@ -25,10 +25,11 @@ from typing import Any
 import numpy as np
 
 try:
-    from transformers import pipeline  # type: ignore
+    from transformers import pipeline  # type: ignore[import-not-found]
     CRISPER_AVAILABLE = True
 except ImportError:
     CRISPER_AVAILABLE = False
+    pipeline = None  # type: ignore[assignment]
 
 from ..models.capability import BackendInfo, Capability, Platform
 from ..models.result import Segment, TranscriptionResult, Word
@@ -99,7 +100,12 @@ class CrisperWhisperBackend(WhisperBackend):
             ValueError: Se idioma não é suportado
             PlatformNotSupportedError: Se plataforma não é suportada
         """
-        super().__init__(config)
+        # Extrair parâmetros do config
+        language = config.get("language", "en")
+        model = config.get("model", "large-v3")
+        device = config.get("device", "auto")
+
+        super().__init__(model=model, language=language)
 
         if not CRISPER_AVAILABLE:
             raise ImportError(
@@ -107,12 +113,12 @@ class CrisperWhisperBackend(WhisperBackend):
                 "Instale com: pip install git+https://github.com/nyrahealth/transformers.git@crisper_whisper"
             )
 
-        self.model = None
-        self.device = config.get("device", "auto")
-        self.language = config.get("language", "en")
+        self.model: Any = None
+        self.device = device
+        self.language = language
 
         # Validar idioma
-        if self.language not in self.info.supported_languages:
+        if self.info.supported_languages and self.language not in self.info.supported_languages:
             raise ValueError(
                 f"Idioma '{self.language}' não suportado. "
                 f"Suportados: {', '.join(self.info.supported_languages)}"
@@ -151,6 +157,7 @@ class CrisperWhisperBackend(WhisperBackend):
 
         try:
             # Carregar pipeline do HuggingFace
+            assert pipeline is not None, "CrisperWhisper não está disponível"
             self.model = pipeline(
                 "automatic-speech-recognition",
                 model="nyrahealth/CrisperWhisper",
@@ -242,6 +249,7 @@ class CrisperWhisperBackend(WhisperBackend):
 
             # Criar segmento
             if current_segment_words:
+                assert segment_start is not None and segment_end is not None
                 segments.append(Segment(
                     start=segment_start,
                     end=segment_end,

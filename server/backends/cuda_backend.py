@@ -231,7 +231,7 @@ class CUDABackend(WhisperBackend):
 
             # Limpar cache CUDA
             try:
-                import torch
+                import torch  # type: ignore[import-not-found]
                 if torch.cuda.is_available():
                     torch.cuda.empty_cache()
                     self.logger.info("Cache CUDA limpo")
@@ -255,7 +255,7 @@ class CUDABackend(WhisperBackend):
 
         # Adicionar info da GPU
         try:
-            import torch
+            import torch  # type: ignore[import-not-found]
             if torch.cuda.is_available():
                 device_idx = int(self.device.split(":")[-1]) if ":" in self.device else 0
                 info["gpu_name"] = torch.cuda.get_device_name(device_idx)

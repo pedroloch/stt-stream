@@ -26,6 +26,7 @@ from .websocket_handler import WebSocketHandler
 from .whisper_processor import WhisperProcessor
 
 
+
 class WhisperServer:
     """
     Servidor Whisper Stream
@@ -49,11 +50,11 @@ class WhisperServer:
             format_type=config.logging.format
         )
 
-        self.processor: WhisperProcessor = None
-        self.handler: WebSocketHandler = None
-        self.app: web.Application = None
-        self.runner: web.AppRunner = None
-        self.site: web.TCPSite = None
+        self.processor: WhisperProcessor | None = None
+        self.handler: WebSocketHandler | None = None
+        self.app: web.Application | None = None
+        self.runner: web.AppRunner | None = None
+        self.site: web.TCPSite | None = None
 
     async def initialize(self) -> None:
         """Inicializa o servidor"""
@@ -87,6 +88,7 @@ class WhisperServer:
         """Configura CORS"""
         import aiohttp_cors
 
+        assert self.app is not None
         cors = aiohttp_cors.setup(self.app, defaults={
             origin: aiohttp_cors.ResourceOptions(
                 allow_credentials=True,
@@ -149,6 +151,7 @@ class WhisperServer:
 
     async def start(self) -> None:
         """Inicia o servidor"""
+        assert self.app is not None
         self.runner = web.AppRunner(self.app)
         await self.runner.setup()
 

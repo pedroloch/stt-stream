@@ -71,7 +71,7 @@ class BackendRegistry:
         for name, backend_class in cls._backends.items():
             # Acessar INFO class variable diretamente (sem instanciar)
             if hasattr(backend_class, 'INFO'):
-                result[name] = backend_class.INFO
+                result[name] = backend_class.INFO  # type: ignore[attr-defined]
             else:
                 # Fallback para backends que ainda usam @property (legacy)
                 try:
@@ -111,7 +111,7 @@ class BackendRegistry:
         for name, backend_class in cls._backends.items():
             # Acessar INFO class variable diretamente (sem instanciar)
             if hasattr(backend_class, 'INFO'):
-                backend_info = backend_class.INFO
+                backend_info = backend_class.INFO  # type: ignore[attr-defined]
                 if platform in backend_info.supported_platforms:
                     available[name] = backend_info
             else:
@@ -164,7 +164,7 @@ class BackendRegistry:
 
         # Acessar INFO class variable diretamente para validação
         if hasattr(backend_class, 'INFO'):
-            backend_info = backend_class.INFO
+            backend_info = backend_class.INFO  # type: ignore[attr-defined]
         else:
             # Fallback: instanciar para pegar info (legacy)
             temp_backend = backend_class()

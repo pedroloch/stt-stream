@@ -147,7 +147,7 @@ class FasterWhisperBackend(WhisperBackend):
     def _detect_best_device(self) -> str:
         """Detecta melhor device disponivel"""
         try:
-            import torch
+            import torch  # type: ignore[import-not-found]
 
             if torch.cuda.is_available():
                 self.logger.info("GPU CUDA detectada")
@@ -320,7 +320,7 @@ class FasterWhisperBackend(WhisperBackend):
         # Info da GPU se CUDA
         if self.device == "cuda":
             try:
-                import torch
+                import torch  # type: ignore[import-not-found]
 
                 if torch.cuda.is_available():
                     info_dict["gpu"] = torch.cuda.get_device_name(0)

@@ -117,7 +117,7 @@ class WebSocketSerializer:
         return word.to_dict()
 
     @staticmethod
-    def serialize_error(message: str, code: str = None) -> dict[str, Any]:
+    def serialize_error(message: str, code: str | None = None) -> dict[str, Any]:
         """
         Serializa mensagem de erro
 
@@ -142,7 +142,7 @@ class WebSocketSerializer:
         return error
 
     @staticmethod
-    def serialize_connected(server_info: dict[str, Any], session_id: str = None) -> dict[str, Any]:
+    def serialize_connected(server_info: dict[str, Any], session_id: str | None = None) -> dict[str, Any]:
         """
         Serializa mensagem de conexão
 

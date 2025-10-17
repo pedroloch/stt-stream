@@ -74,7 +74,7 @@ class MLXBackend(WhisperBackend):
         try:
             # Verificar se mlx-whisper está disponível
             try:
-                import mlx_whisper  # noqa: F401
+                import mlx_whisper  # type: ignore[import-not-found] # noqa: F401
             except ImportError:
                 raise BackendNotAvailableError(
                     "mlx-whisper não instalado. Instale com: pip install mlx-whisper\n"
@@ -133,7 +133,7 @@ class MLXBackend(WhisperBackend):
             raise BackendError("Backend não inicializado. Chame initialize() primeiro.")
 
         try:
-            import mlx_whisper
+            import mlx_whisper  # type: ignore[import-not-found]
 
             # Preparar áudio
             if audio.dtype != np.float32:
@@ -267,7 +267,7 @@ class MLXBackend(WhisperBackend):
     def _get_mlx_whisper_version(self) -> str:
         """Obtém versão do mlx-whisper"""
         try:
-            import mlx_whisper
+            import mlx_whisper  # type: ignore[import-not-found]
             return mlx_whisper.__version__
         except (ImportError, AttributeError):
             return "unknown"

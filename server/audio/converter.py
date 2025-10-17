@@ -64,7 +64,7 @@ class AudioConverter:
     @staticmethod
     def validate_audio(
         audio: np.ndarray,
-        expected_sample_rate: int = None,
+        expected_sample_rate: int | None = None,
         min_duration: float = 0.1,
         max_duration: float = 30.0,
     ) -> bool:
