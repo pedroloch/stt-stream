@@ -286,10 +286,11 @@ class WhisperStreamClient {
 
     this.audioProcess.on("error", (error) => {
       console.log(chalk.red(`\n❌ Erro no processo de áudio: ${error.message}`));
-      if (error.message.includes("ENOENT")) {
+      if (error.message.includes("ENOENT") || error.message.includes("Executable not found")) {
         console.log(chalk.yellow("\n💡 sox não está instalado. Instale com:"));
         console.log(chalk.gray("   macOS: brew install sox"));
         console.log(chalk.gray("   Linux: sudo apt-get install sox"));
+        console.log(chalk.gray("\nDepois de instalar, rode novamente: bun start"));
         process.exit(1);
       }
     });
