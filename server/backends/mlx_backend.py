@@ -60,15 +60,16 @@ class MLXBackend(WhisperBackend):
             self.models_dir.mkdir(parents=True, exist_ok=True)
             self.cache_dir.mkdir(parents=True, exist_ok=True)
 
-            # MLX Whisper carrega modelos de forma diferente
-            # Ele usa a API do Whisper original mas otimizado para Apple Silicon
-            self.model_instance = mlx_whisper.load_model(
-                self.model,
-                # mlx-whisper baixa automaticamente se necessário
-            )
+            # MLX Whisper usa formato HuggingFace Hub
+            # Modelo é referenciado como "mlx-community/whisper-{model}"
+            # Não precisa carregar modelo antecipadamente, usa transcribe() direto
+            self.model_path = f"mlx-community/whisper-{self.model}"
+
+            # Testar que o mlx_whisper funciona (importação já foi feita)
+            self.logger.info(f"Usando modelo MLX: {self.model_path}")
 
             self._initialized = True
-            self.logger.info("✅ Modelo MLX carregado com sucesso (Apple Silicon)")
+            self.logger.info("✅ Modelo MLX configurado (será baixado no primeiro uso)")
 
         except BackendNotAvailableError:
             raise
@@ -119,9 +120,11 @@ class MLXBackend(WhisperBackend):
                 transcribe_options["condition_on_previous_text"] = self.kwargs["condition_on_previous_text"]
 
             # Transcrever usando MLX (rápido em Apple Silicon!)
+            # Nota: mlx_whisper.transcribe baixa o modelo automaticamente na primeira vez
             result = mlx_whisper.transcribe(
                 audio,
-                path_or_hf_repo=self.model_instance,
+                path_or_hf_repo=self.model_path,
+                verbose=False,  # Não mostrar logs de progresso
                 **transcribe_options
             )
 
