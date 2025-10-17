@@ -7,7 +7,9 @@ Carrega e valida configurações do arquivo YAML
 import yaml
 from pathlib import Path
 from dataclasses import dataclass, field
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Union
+
+from .models.enums import BackendType, LogLevel, LogFormat, ComputeType, DeviceType, BufferTrimming
 
 
 @dataclass
@@ -26,13 +28,13 @@ class WhisperConfig:
     """Configurações do Whisper"""
     model: str = "base"
     language: str = "pt"
-    backend: str = "auto"  # auto, mlx, cuda, cpu
-    device: str = "auto"
-    compute_type: str = "float16"
+    backend: Union[BackendType, str] = BackendType.AUTO
+    device: Union[DeviceType, str] = DeviceType.AUTO
+    compute_type: Union[ComputeType, str] = ComputeType.FLOAT16
     use_vad: bool = True
     vad_threshold: float = 0.5
     min_chunk_size: float = 1.0
-    buffer_trimming: str = "segment"
+    buffer_trimming: Union[BufferTrimming, str] = BufferTrimming.SEGMENT
     beam_size: int = 1
     best_of: int = 1
     temperature: float = 0.0
@@ -57,10 +59,10 @@ class PathsConfig:
 @dataclass
 class LoggingConfig:
     """Configurações de logging"""
-    level: str = "info"
+    level: Union[LogLevel, str] = LogLevel.INFO
     save_to_file: bool = True
     log_dir: str = "./logs"
-    format: str = "pretty"  # pretty ou json
+    format: Union[LogFormat, str] = LogFormat.PRETTY
     log_audio_stats: bool = False
 
 
@@ -134,12 +136,51 @@ class Config:
         Returns:
             Config object
         """
+        # Converter strings para enums se necessário
+        whisper_data = data.get("whisper", {})
+        if "backend" in whisper_data and isinstance(whisper_data["backend"], str):
+            try:
+                whisper_data["backend"] = BackendType(whisper_data["backend"])
+            except ValueError:
+                pass  # Manter string se não for um enum válido
+
+        if "compute_type" in whisper_data and isinstance(whisper_data["compute_type"], str):
+            try:
+                whisper_data["compute_type"] = ComputeType(whisper_data["compute_type"])
+            except ValueError:
+                pass
+
+        if "device" in whisper_data and isinstance(whisper_data["device"], str):
+            try:
+                whisper_data["device"] = DeviceType(whisper_data["device"])
+            except ValueError:
+                pass
+
+        if "buffer_trimming" in whisper_data and isinstance(whisper_data["buffer_trimming"], str):
+            try:
+                whisper_data["buffer_trimming"] = BufferTrimming(whisper_data["buffer_trimming"])
+            except ValueError:
+                pass
+
+        logging_data = data.get("logging", {})
+        if "level" in logging_data and isinstance(logging_data["level"], str):
+            try:
+                logging_data["level"] = LogLevel(logging_data["level"])
+            except ValueError:
+                pass
+
+        if "format" in logging_data and isinstance(logging_data["format"], str):
+            try:
+                logging_data["format"] = LogFormat(logging_data["format"])
+            except ValueError:
+                pass
+
         return cls(
             server=ServerConfig(**data.get("server", {})),
-            whisper=WhisperConfig(**data.get("whisper", {})),
+            whisper=WhisperConfig(**whisper_data),
             performance=PerformanceConfig(**data.get("performance", {})),
             paths=PathsConfig(**data.get("paths", {})),
-            logging=LoggingConfig(**data.get("logging", {})),
+            logging=LoggingConfig(**logging_data),
             hardware=HardwareConfig(**data.get("hardware", {})),
             debug=DebugConfig(**data.get("debug", {})),
         )
@@ -167,11 +208,19 @@ class Config:
         if "language" in kwargs:
             config.whisper.language = kwargs["language"]
         if "backend" in kwargs:
-            config.whisper.backend = kwargs["backend"]
+            # Tentar converter para enum
+            try:
+                config.whisper.backend = BackendType(kwargs["backend"])
+            except ValueError:
+                config.whisper.backend = kwargs["backend"]
         if "use_vad" in kwargs:
             config.whisper.use_vad = kwargs["use_vad"]
         if "log_level" in kwargs:
-            config.logging.level = kwargs["log_level"]
+            # Tentar converter para enum
+            try:
+                config.logging.level = LogLevel(kwargs["log_level"])
+            except ValueError:
+                config.logging.level = kwargs["log_level"]
         if "verbose" in kwargs:
             config.debug.verbose = kwargs["verbose"]
 
