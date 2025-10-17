@@ -1,1326 +1,816 @@
-# 🎙️ Especificação Técnica: Whisper Real-Time Transcription System
+# 🎙️ Whisper Stream - Especificação Técnica v2.0
+
+**Data**: 2025-10-17
+**Status**: Arquitetura Capabilities-Based
+**Target**: Empresas e reuniões com suporte a diarization e tradução
+
+---
 
 ## 📋 Visão Geral
 
-Sistema de transcrição em tempo real usando OpenAI Whisper, com arquitetura cliente-servidor via WebSocket. Interface de linha de comando simples com `bun start` que exibe transcrições enquanto você fala.
+Sistema de transcrição em tempo real usando modelos de Speech-to-Text open-source (Whisper, WhisperX, SeamlessM4T), com arquitetura cliente-servidor via WebSocket. Suporta **múltiplos backends** com detecção automática de plataforma e **capabilities** específicas (word timestamps, speaker diarization, translation).
+
+### Filosofia Arquitetural
+
+**"One codebase, multiple backends, unified protocol"**
+
+- Backend Factory Pattern com validação de plataforma
+- Cada backend declara suas capabilities
+- Protocolo WebSocket unificado com campos opcionais
+- Fail-fast com mensagens de erro claras
+- Zero dependências pagas (100% self-hosted)
 
 ---
 
-## 🎯 Objetivos
+## 🎯 Objetivos e Target
 
 ### Objetivo Principal
 
-Criar um sistema plug-and-play de transcrição em tempo real que:
+Sistema de transcrição profissional para **empresas e reuniões** com:
 
-- Funciona com um único comando: `bun start`
-- Mostra transcrições aparecendo dinamicamente no terminal
-- Suporta múltiplas plataformas (macOS, Linux com CUDA)
-- É altamente configurável via arquivo de configuração
+1. **Speaker Diarization**: Identificar quem está falando em reuniões
+2. **Word-level Timestamps**: Precisão para captions e análise
+3. **Translation**: Transcrever + traduzir simultaneamente
+4. **Flexibilidade**: Rodar em Mac (dev) ou GPU Linux (prod)
 
-### Requisitos Funcionais
+### Use Cases
 
-#### RF01 - Comando Único de Inicialização
+#### Use Case 1: Reunião Corporativa
+- 3-5 pessoas em reunião
+- Transcrição com identificação de speakers (SPEAKER_00, SPEAKER_01...)
+- Export para ata de reunião
+- **Backend**: WhisperX (CUDA)
 
-- **Descrição**: Usuário deve poder iniciar todo o sistema com `bun start`
-- **Critério**: Servidor Python e cliente TypeScript iniciam automaticamente
-- **Prioridade**: Alta
+#### Use Case 2: Call Center Internacional
+- Transcrição + tradução em tempo real (PT → EN, ES)
+- Alta qualidade, latência < 2s aceitável
+- **Backend**: SeamlessM4T (CUDA)
 
-#### RF02 - Transcrição em Tempo Real
-
-- **Descrição**: Áudio capturado do microfone é transcrito continuamente
-- **Critério**: Latência < 3 segundos com modelo base
-- **Prioridade**: Alta
-
-#### RF03 - Visualização no Terminal
-
-- **Descrição**: Transcrições aparecem no terminal de forma legível
-- **Critério**:
-  - Transcrições parciais em uma cor
-  - Transcrições finais em outra cor
-  - Auto-scroll
-  - Timestamps opcionais
-- **Prioridade**: Alta
-
-#### RF04 - Configuração Flexível
-
-- **Descrição**: Sistema configurável via arquivo YAML/JSON
-- **Critério**: Permitir configurar:
-  - Modelo Whisper (tiny, base, small, medium, large)
-  - Idioma
-  - Backend (MLX, CUDA, CPU)
-  - Porta do servidor
-  - Sample rate
-  - VAD on/off
-- **Prioridade**: Alta
-
-#### RF05 - Detecção Automática de Hardware
-
-- **Descrição**: Sistema detecta automaticamente GPU disponível
-- **Critério**:
-  - Detecta Apple Silicon → usa MLX
-  - Detecta NVIDIA GPU → usa CUDA
-  - Fallback para CPU
-- **Prioridade**: Média
-
-#### RF06 - Gestão de Processo
-
-- **Descrição**: Cliente gerencia ciclo de vida do servidor
-- **Critério**:
-  - Inicia servidor automaticamente
-  - Para servidor ao sair (Ctrl+C)
-  - Reconecta em caso de queda
-- **Prioridade**: Alta
-
-### Requisitos Não-Funcionais
-
-#### RNF01 - Performance
-
-- Latência máxima: 3 segundos (modelo base)
-- Uso de memória: < 2GB RAM (modelo base)
-- CPU: Uso otimizado com threads configuráveis
-
-#### RNF02 - Usabilidade
-
-- Setup em < 5 minutos
-- Documentação clara
-- Mensagens de erro úteis
-- Logs informativos
-
-#### RNF03 - Portabilidade
-
-- macOS (Intel e Apple Silicon)
-- Linux (CUDA)
-- Python 3.10+
-- Bun 1.0+
-
-#### RNF04 - Confiabilidade
-
-- Reconexão automática
-- Tratamento de erros robusto
-- Graceful shutdown
+#### Use Case 3: Desenvolvimento Local
+- Prototipar em MacBook Pro M1
+- Modelo médio, boa qualidade
+- **Backend**: MLX ou faster-whisper
 
 ---
 
-## 🏗️ Arquitetura
+## 🏗️ Arquitetura Capabilities-Based
 
-### Visão Geral da Arquitetura
+### Visão Geral
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                         USUÁRIO                                 │
-│                    $ bun start                                  │
-└────────────────────────────┬────────────────────────────────────┘
-                             │
-                             ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    BUN ORCHESTRATOR                             │
-│  - Lê configuração (config.yaml)                               │
-│  - Detecta hardware (GPU/CPU)                                  │
-│  - Inicia servidor Python                                      │
-│  - Inicia cliente de captura                                   │
-│  - Gerencia processos                                          │
-└────────────────────────────┬────────────────────────────────────┘
-                             │
-                ┌────────────┴────────────┐
-                │                         │
-                ▼                         ▼
-┌───────────────────────────┐   ┌────────────────────────────┐
-│   SERVIDOR PYTHON         │   │   CLIENTE BUN/TYPESCRIPT   │
-│   (Whisper WebSocket)     │   │   (Audio Capture)          │
-│                           │   │                            │
-│  - Recebe áudio via WS    │◄──┤  - Captura microfone       │
-│  - Processa com Whisper   │   │  - Envia via WebSocket     │
-│  - Retorna transcrição    │──►│  - Exibe no terminal       │
-│                           │   │                            │
-│  Backend:                 │   │  UI:                       │
-│  • MLX (Apple Silicon)    │   │  • Terminal elegante       │
-│  • CUDA (NVIDIA)          │   │  • Cores/formatação        │
-│  • CPU (fallback)         │   │  • Timestamps              │
-└───────────────────────────┘   └────────────────────────────┘
-         │                               │
-         │                               │
-         ▼                               ▼
-┌──────────────────┐            ┌─────────────────┐
-│  Whisper Model   │            │   Microfone     │
-│  (*.bin)         │            │   (sox/Web API) │
-└──────────────────┘            └─────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│                    CONFIG.YAML                          │
+│  backend: "whisperx"  # Escolhe backend                │
+│  enable_diarization: true                               │
+│  target_languages: ["en", "es"]                        │
+└────────────────────┬────────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────────┐
+│              BACKEND REGISTRY                           │
+│                                                         │
+│  - Detecta plataforma atual (Mac M1, Linux CUDA, etc)  │
+│  - Lista backends disponíveis                          │
+│  - Valida compatibilidade (fail-fast se incompatível)  │
+│  - Cria backend escolhido                              │
+└────────────────────┬────────────────────────────────────┘
+                     │
+        ┌────────────┴──────────────┐
+        ▼                           ▼
+┌──────────────────┐      ┌──────────────────────┐
+│  MLX BACKEND     │      │  WHISPERX BACKEND     │
+│  (Mac M1 only)   │      │  (CUDA only)          │
+│                  │      │                       │
+│  Capabilities:   │      │  Capabilities:        │
+│  - Transcription │      │  - Transcription      │
+│  - Word times    │      │  - Word timestamps    │
+│  - Streaming     │      │  - Diarization ⭐     │
+│                  │      │  - VAD                │
+└──────────────────┘      └──────────────────────┘
+
+        ▼                           ▼
+┌─────────────────────────────────────────────────────────┐
+│           UNIFIED WEBSOCKET PROTOCOL                    │
+│                                                         │
+│  {                                                      │
+│    "type": "transcription",                            │
+│    "text": "Concordo totalmente",                     │
+│    "is_final": true,                                   │
+│    "speaker": "SPEAKER_01",  ← Se backend suporta      │
+│    "segments": [{             ← Se backend suporta      │
+│      "words": [...]                                    │
+│    }],                                                 │
+│    "translations": {...}      ← Se backend suporta      │
+│  }                                                      │
+└─────────────────────────────────────────────────────────┘
+
+        ▼
+┌─────────────────────────────────────────────────────────┐
+│                  BUN CLIENT                             │
+│                                                         │
+│  - Renderiza UI baseado em capabilities recebidas      │
+│  - Se tem speaker → mostra label de speaker            │
+│  - Se tem words → mostra highlight de palavra          │
+│  - Se tem translation → mostra traduções               │
+└─────────────────────────────────────────────────────────┘
 ```
 
-### Componentes
+### Componentes Principais
 
-#### 1. Orchestrator (Bun/TypeScript)
+#### 1. Platform Detection
 
-**Responsabilidades:**
+Detecta automaticamente a plataforma de execução:
 
-- Entry point do sistema (`bun start`)
-- Leitura de configuração
-- Detecção de hardware
-- Gerenciamento de processos (iniciar/parar servidor)
-- Coordenação entre componentes
+```python
+class Platform(Enum):
+    MACOS_APPLE_SILICON = "macos_arm64"
+    MACOS_INTEL = "macos_x86_64"
+    LINUX_CUDA = "linux_cuda"
+    LINUX_CPU = "linux_cpu"
+    WINDOWS_CUDA = "windows_cuda"
 
-**Arquivos:**
+def detect_platform() -> Platform:
+    """Auto-detect plataforma atual"""
+    # Verifica sistema operacional + arquitetura + GPU
+    # Retorna plataforma específica
+```
 
-- `src/index.ts` - Entry point
-- `src/orchestrator.ts` - Lógica de orquestração
-- `src/config.ts` - Gerenciamento de configuração
-- `src/hardware-detector.ts` - Detecção de hardware
+#### 2. Capability System
 
-#### 2. Servidor WebSocket (Python)
+Cada backend declara o que é capaz de fazer:
 
-**Responsabilidades:**
+```python
+class Capability(Enum):
+    TRANSCRIPTION = "transcription"
+    WORD_TIMESTAMPS = "word_timestamps"
+    SPEAKER_DIARIZATION = "diarization"
+    TRANSLATION = "translation"
+    VAD = "vad"
+    STREAMING = "streaming"
 
-- Receber áudio via WebSocket
-- Processar com Whisper (whisper_streaming)
-- Gerenciar múltiplos clientes
-- Retornar transcrições
+@dataclass
+class BackendInfo:
+    name: str
+    supported_platforms: Set[Platform]
+    capabilities: Set[Capability]
+    supported_languages: Optional[Set[str]] = None
+    model_sizes: Set[str] = None
+```
 
-**Arquivos:**
+#### 3. Backend Registry
 
-- `server/main.py` - Entry point do servidor
-- `server/websocket_handler.py` - Lógica WebSocket
-- `server/whisper_processor.py` - Wrapper do Whisper
-- `server/backends/` - Backends específicos (MLX, CUDA, CPU)
+Factory pattern com validação automática:
 
-#### 3. Cliente de Captura (Bun/TypeScript)
+```python
+class BackendRegistry:
+    _backends = {
+        "mlx": MLXBackend,
+        "faster-whisper": FasterWhisperBackend,
+        "whisperx": WhisperXBackend,
+        "seamless-m4t": SeamlessM4TBackend,
+    }
 
-**Responsabilidades:**
+    @classmethod
+    def create(cls, name: str, config: dict) -> TranscriptionBackend:
+        """Cria backend com validação de plataforma"""
+        backend = cls._backends[name]()
 
-- Capturar áudio do microfone
-- Enviar para servidor via WebSocket
-- Receber e exibir transcrições
-- Interface de terminal elegante
+        # Validar plataforma
+        current = detect_platform()
+        if current not in backend.info.supported_platforms:
+            raise PlatformNotSupportedError(
+                f"Backend '{name}' não suporta {current}.\n"
+                f"Backends disponíveis: {cls.list_available()}"
+            )
 
-**Arquivos:**
+        return backend
+```
 
-- `src/client/audio-capture.ts` - Captura de áudio
-- `src/client/websocket-client.ts` - Cliente WebSocket
-- `src/client/terminal-ui.ts` - Interface do terminal
-- `src/client/transcription-display.ts` - Exibição formatada
+#### 4. Unified Result
+
+Resultado normalizado independente do backend:
+
+```python
+@dataclass
+class TranscriptionResult:
+    text: str
+    is_final: bool
+    confidence: float
+    language: str
+    timestamp: datetime
+
+    # Opcionais (nem todos backends preenchem)
+    segments: Optional[List[Segment]] = None
+    words: Optional[List[Word]] = None
+    speaker: Optional[str] = None
+    translation: Optional[Dict[str, str]] = None
+
+@dataclass
+class Word:
+    word: str
+    start: float
+    end: float
+    probability: float
+
+@dataclass
+class Segment:
+    start: float
+    end: float
+    text: str
+    words: Optional[List[Word]] = None
+```
+
+---
+
+## 🔧 Backends Implementados
+
+### 1. MLX Backend (Development - Mac M1)
+
+**Platform**: `MACOS_APPLE_SILICON`
+
+**Capabilities**:
+- ✅ Transcription
+- ✅ Word Timestamps (se mlx-whisper suportar)
+- ✅ Streaming
+- ❌ Diarization (usar pyannote separadamente)
+- ❌ Translation
+
+**Use Case**: Desenvolvimento local no Mac
+
+**Config**:
+```yaml
+backend:
+  name: "mlx"
+  model: "medium"  # tiny, base, small, medium, large
+  language: "pt"
+  enable_word_timestamps: true
+```
+
+**Trade-offs**:
+- ✅ Rápido no Apple Silicon
+- ✅ Baixo consumo de energia
+- ❌ Não tem diarization nativa
+- ❌ Limitado ao Mac
+
+---
+
+### 2. Faster-Whisper Backend (Universal)
+
+**Platform**: Todos (CUDA, CPU, Mac)
+
+**Capabilities**:
+- ✅ Transcription
+- ✅ Word Timestamps
+- ✅ VAD
+- ✅ Streaming
+- ❌ Diarization (usar pyannote separadamente)
+- ❌ Translation
+
+**Use Case**:
+- Produção CPU-only
+- Fallback universal
+- GPU NVIDIA (com distil-large-v3 → 6x mais rápido)
+
+**Config**:
+```yaml
+backend:
+  name: "faster-whisper"
+  model: "distil-large-v3"  # ← RECOMENDADO (6x faster)
+  language: "pt"
+  device: "auto"  # auto, cuda, cpu
+  compute_type: "int8_float16"  # Otimizado para distil
+
+  # Anti-hallucination
+  no_speech_threshold: 0.6
+  log_prob_threshold: -1.0
+  compression_ratio_threshold: 2.4
+
+  # VAD
+  enable_vad: true
+  vad_threshold: 0.75
+
+  # Word timestamps
+  enable_word_timestamps: true
+```
+
+**Trade-offs**:
+- ✅ Funciona em qualquer hardware
+- ✅ Muito rápido com distil-whisper
+- ✅ Menos alucinações
+- ❌ Sem diarization nativa
+
+**Performance esperada**:
+```
+Mac M1 (medium):          ~0.25x realtime (4x faster)
+Mac M1 (distil-large-v3): ~0.16x realtime (6x faster)
+GPU RTX 4090:             ~0.05x realtime (20x faster)
+```
+
+---
+
+### 3. WhisperX Backend (Production - CUDA) ⭐⭐⭐
+
+**Platform**: `LINUX_CUDA` only
+
+**Capabilities**:
+- ✅ Transcription
+- ✅ Word Timestamps (wav2vec2 alignment - mais preciso)
+- ✅ **Speaker Diarization** ⭐
+- ✅ VAD
+- ✅ Streaming
+
+**Use Case**:
+- Reuniões com múltiplas pessoas
+- Call centers
+- Produção high-end
+
+**Config**:
+```yaml
+backend:
+  name: "whisperx"
+  model: "large-v3"
+  language: "pt"
+  device: "cuda"
+
+  # Diarization (requer HuggingFace token)
+  enable_diarization: true
+  huggingface_token: "${HUGGINGFACE_TOKEN}"
+
+  # VAD
+  enable_vad: true
+  vad_threshold: 0.7
+```
+
+**Pipeline**:
+```
+Áudio → Whisper (transcrição) → wav2vec2 (word alignment)
+                               → pyannote (diarization)
+                               → assign speakers to words
+```
+
+**Trade-offs**:
+- ✅ Melhor word alignment (wav2vec2)
+- ✅ Speaker diarization integrada
+- ✅ Tudo otimizado junto
+- ❌ Requer CUDA GPU
+- ❌ ~1.5-2x mais lento que faster-whisper
+- ❌ Requer HuggingFace token (gratuito)
+
+**Output Example**:
+```json
+{
+  "text": "Concordo totalmente com essa proposta",
+  "speaker": "SPEAKER_01",
+  "segments": [{
+    "start": 3.5,
+    "end": 6.8,
+    "words": [
+      {"word": "Concordo", "start": 3.5, "end": 4.1, "prob": 0.98},
+      {"word": "totalmente", "start": 4.1, "end": 4.9, "prob": 0.96},
+      ...
+    ]
+  }]
+}
+```
+
+---
+
+### 4. SeamlessM4T Backend (Translation) ⭐⭐⭐
+
+**Platform**: `LINUX_CUDA` only (modelo grande ~10GB)
+
+**Capabilities**:
+- ✅ Transcription
+- ✅ **Translation** (100+ idiomas) ⭐
+- ✅ Streaming
+- ❌ Diarization
+- ❌ Word Timestamps
+
+**Use Case**:
+- Reuniões internacionais
+- Transcrever + traduzir simultaneamente
+- Produto premium (feature única)
+
+**Config**:
+```yaml
+backend:
+  name: "seamless-m4t"
+  language: "pt"  # Idioma de entrada
+  target_languages:
+    - "en"
+    - "es"
+    - "fr"
+  device: "cuda"
+```
+
+**Trade-offs**:
+- ✅ Transcrição + tradução em um modelo
+- ✅ 100+ idiomas suportados
+- ✅ Melhor em code-switching
+- ❌ Modelo muito grande (10GB+)
+- ❌ ~2-3x mais lento que Whisper
+- ❌ Requer GPU potente
+
+**Output Example**:
+```json
+{
+  "text": "Olá, como você está?",
+  "language": "pt",
+  "translations": {
+    "en": "Hello, how are you?",
+    "es": "Hola, ¿cómo estás?",
+    "fr": "Bonjour, comment allez-vous?"
+  }
+}
+```
+
+---
+
+## 📡 Protocolo WebSocket Unificado
+
+### Mensagens Cliente → Servidor
+
+#### 1. Configuração de Sessão
+```json
+{
+  "type": "configure",
+  "settings": {
+    "language": "pt",
+    "enable_word_timestamps": true,
+    "enable_diarization": true,
+    "target_languages": ["en", "es"]
+  }
+}
+```
+
+#### 2. Áudio
+```
+Binary frame: Int16 PCM audio data (16kHz, mono)
+```
+
+#### 3. Controle
+```json
+{
+  "type": "pause"  // Pausar transcrição
+}
+
+{
+  "type": "resume"  // Retomar
+}
+
+{
+  "type": "reset"  // Limpar contexto
+}
+```
+
+### Mensagens Servidor → Cliente
+
+#### 1. Transcrição (formato unificado)
+```json
+{
+  "type": "transcription",
+  "text": "Concordo totalmente",
+  "is_final": true,
+  "confidence": 0.95,
+  "language": "pt",
+  "timestamp": "2025-10-17T18:30:00.000Z",
+
+  // Opcional: Word timestamps (faster-whisper, whisperx)
+  "segments": [{
+    "start": 3.5,
+    "end": 6.8,
+    "text": "Concordo totalmente",
+    "words": [
+      {"word": "Concordo", "start": 3.5, "end": 4.1, "probability": 0.98},
+      {"word": "totalmente", "start": 4.1, "end": 4.9, "probability": 0.96}
+    ]
+  }],
+
+  // Opcional: Speaker diarization (whisperx)
+  "speaker": "SPEAKER_01",
+
+  // Opcional: Translation (seamless-m4t)
+  "translations": {
+    "en": "I completely agree",
+    "es": "Estoy completamente de acuerdo"
+  },
+
+  // Metadata
+  "backend": "whisperx",
+  "capabilities_used": ["diarization", "word_timestamps"]
+}
+```
+
+#### 2. Erro
+```json
+{
+  "type": "error",
+  "message": "Backend 'whisperx' requires CUDA GPU",
+  "code": "PLATFORM_NOT_SUPPORTED",
+  "suggestions": [
+    "Use 'mlx' backend on Mac",
+    "Use 'faster-whisper' on CPU",
+    "Deploy on GPU server (RunPod)"
+  ]
+}
+```
+
+#### 3. Status
+```json
+{
+  "type": "status",
+  "backend": "whisperx",
+  "model": "large-v3",
+  "capabilities": ["transcription", "diarization", "word_timestamps"],
+  "platform": "linux_cuda",
+  "gpu": "NVIDIA RTX 4090"
+}
+```
+
+---
+
+## ⚙️ Configuração
+
+### Desenvolvimento (Mac M1)
+```yaml
+# config.yaml
+backend:
+  name: "mlx"
+  model: "medium"
+  language: "pt"
+  enable_word_timestamps: true
+
+server:
+  host: "0.0.0.0"
+  port: 9090
+
+client:
+  auto_reconnect: true
+```
+
+### Produção (GPU - Diarization)
+```yaml
+# config-production.yaml
+backend:
+  name: "whisperx"
+  model: "large-v3"
+  language: "pt"
+  device: "cuda"
+
+  # Diarization
+  enable_diarization: true
+  huggingface_token: "${HUGGINGFACE_TOKEN}"
+
+  # Anti-hallucination
+  no_speech_threshold: 0.6
+  log_prob_threshold: -1.0
+
+  # VAD
+  enable_vad: true
+  vad_threshold: 0.75
+
+server:
+  host: "0.0.0.0"
+  port: 9090
+  max_clients: 10
+```
+
+### Produção (GPU - Translation)
+```yaml
+# config-translation.yaml
+backend:
+  name: "seamless-m4t"
+  language: "pt"
+  target_languages:
+    - "en"
+    - "es"
+    - "fr"
+  device: "cuda"
+
+server:
+  host: "0.0.0.0"
+  port: 9090
+```
+
+---
+
+## 🚫 Error Handling
+
+### Exemplo 1: Backend incompatível com plataforma
+
+**Cenário**: Usuário tenta usar WhisperX no Mac
+
+**Config**:
+```yaml
+backend:
+  name: "whisperx"
+```
+
+**Error**:
+```
+❌ Backend 'whisperx' (WhisperX) is not supported on macos_arm64.
+
+Available backends for your platform:
+  - mlx: mlx-whisper (transcription, word_timestamps, streaming)
+  - faster-whisper: faster-whisper (transcription, word_timestamps, vad, streaming)
+
+💡 Suggestion: For speaker diarization on Mac, use 'faster-whisper' with external
+   pyannote.audio, or deploy on GPU server (RunPod) with 'whisperx' backend.
+```
+
+### Exemplo 2: HuggingFace token faltando
+
+**Cenário**: WhisperX com diarization sem token
+
+**Error**:
+```
+❌ Speaker diarization requires HuggingFace token.
+
+Get free token at: https://huggingface.co/settings/tokens
+Add to config:
+  backend:
+    huggingface_token: "hf_..."
+
+Or set environment variable:
+  export HUGGINGFACE_TOKEN="hf_..."
+```
 
 ---
 
 ## 📂 Estrutura de Diretórios
 
 ```
-whisper-realtime/
-├── README.md                    # Documentação principal
-├── PROJECT_SPEC.md             # Esta especificação
-├── LICENSE                     # MIT License
-├── .gitignore                  # Git ignore
+whisper-stream/
+├── spec.md                     # Esta especificação
+├── PLAN.md                     # Roadmap de implementação
+├── README.md
+├── LICENSE
 │
-├── config.yaml                 # Configuração principal
-├── config.example.yaml         # Exemplo de configuração
+├── config.yaml                 # Config desenvolvimento (Mac)
+├── config-production.yaml      # Config produção (GPU)
+├── config-translation.yaml     # Config tradução
+├── .env.example                # Environment variables
 │
-├── package.json                # Dependências Bun/Node
-├── tsconfig.json               # Config TypeScript
-├── bun.lockb                   # Lock file do Bun
+├── package.json                # Bun dependencies
+├── pyproject.toml              # Python dependencies (uv)
+├── tsconfig.json
 │
-├── pyproject.toml              # Dependências Python (Poetry)
-├── poetry.lock                 # Lock file Python
-├── requirements.txt            # Fallback pip
-│
-├── scripts/                    # Scripts auxiliares
-│   ├── install.sh             # Instalação completa
-│   ├── setup-python.sh        # Setup Python
-│   ├── setup-bun.sh           # Setup Bun
-│   ├── download-models.sh     # Download modelos
-│   └── test-hardware.sh       # Testar hardware
-│
-├── src/                        # Código TypeScript
-│   ├── index.ts               # Entry point (bun start)
-│   ├── orchestrator.ts        # Orquestração
-│   ├── config.ts              # Gestão de config
-│   ├── hardware-detector.ts   # Detecção hardware
-│   ├── process-manager.ts     # Gestão de processos
-│   │
-│   ├── client/                # Cliente de captura
-│   │   ├── audio-capture.ts
-│   │   ├── websocket-client.ts
-│   │   ├── terminal-ui.ts
-│   │   └── transcription-display.ts
-│   │
-│   ├── types/                 # Type definitions
-│   │   ├── config.ts
-│   │   ├── transcription.ts
-│   │   └── websocket.ts
-│   │
-│   └── utils/                 # Utilitários
-│       ├── logger.ts
-│       ├── errors.ts
-│       └── platform.ts
+├── src/                        # Cliente Bun/TypeScript
+│   ├── index.ts               # Entry point
+│   ├── types.ts               # Type definitions
+│   └── ...
 │
 ├── server/                     # Servidor Python
-│   ├── __init__.py
-│   ├── main.py                # Entry point servidor
-│   ├── config.py              # Config do servidor
-│   ├── websocket_handler.py   # Handler WebSocket
-│   ├── whisper_processor.py   # Processador Whisper
+│   ├── main.py                # Entry point
+│   ├── config.py
+│   ├── websocket_handler.py
 │   │
-│   ├── backends/              # Backends específicos
+│   ├── backends/              # ⭐ Backend implementations
+│   │   ├── base.py           # Abstract base + Platform enum
+│   │   ├── factory.py        # BackendRegistry
+│   │   ├── mlx_backend.py
+│   │   ├── faster_whisper_backend.py
+│   │   ├── whisperx_backend.py     # ← NEW
+│   │   └── seamless_backend.py     # ← NEW
+│   │
+│   ├── models/                # Shared models
 │   │   ├── __init__.py
-│   │   ├── base.py           # Interface base
-│   │   ├── mlx_backend.py    # Backend MLX (Apple)
-│   │   ├── cuda_backend.py   # Backend CUDA (NVIDIA)
-│   │   └── cpu_backend.py    # Backend CPU (fallback)
+│   │   └── result.py         # TranscriptionResult, Word, Segment
 │   │
-│   └── utils/                 # Utilitários Python
-│       ├── __init__.py
-│       ├── logger.py
-│       └── audio.py
+│   └── utils/
+│       ├── platform.py        # detect_platform()
+│       └── logger.py
 │
-├── models/                     # Modelos Whisper (gitignored)
-│   └── .gitkeep
+├── models/                     # Downloaded models (gitignored)
+├── logs/
 │
-├── logs/                       # Logs (gitignored)
-│   └── .gitkeep
+├── tests/
+│   ├── test_backend_factory.py
+│   ├── test_platform_detection.py
+│   └── ...
 │
-├── tests/                      # Testes
-│   ├── unit/
-│   │   ├── test_config.ts
-│   │   ├── test_hardware.ts
-│   │   └── test_client.py
-│   │
-│   └── integration/
-│       ├── test_e2e.ts
-│       └── test_websocket.ts
+├── docs/
+│   ├── ARCHITECTURE.md
+│   ├── RUNPOD.md              # RunPod deployment
+│   └── API.md                 # WebSocket API
 │
-└── docs/                       # Documentação adicional
-    ├── ARCHITECTURE.md
-    ├── CONFIGURATION.md
-    ├── DEPLOYMENT.md
-    ├── TROUBLESHOOTING.md
-    └── API.md
+├── scripts/
+│   └── runpod-deploy.sh       # Deploy to RunPod
+│
+├── Dockerfile.mac              # Mac development
+├── Dockerfile.gpu              # GPU production (whisperx, seamless)
+└── docker-compose.yml
 ```
 
 ---
 
-## ⚙️ Configuração
+## 🔐 Segurança e Privacidade
 
-### config.yaml
+### Princípios
 
-```yaml
-# Configuração do Sistema de Transcrição
+1. **Zero Cloud Dependencies**: Tudo self-hosted
+2. **Sem telemetria**: Nenhum dado enviado para terceiros
+3. **Token local**: HuggingFace token apenas para download de modelos
+4. **Dados temporários**: Áudio processado não é salvo (exceto debug mode)
 
-# Configurações do Servidor
-server:
-  host: "0.0.0.0"
-  port: 9090
-  max_clients: 5
-  auto_start: true
-  log_level: "info" # debug, info, warning, error
+### HuggingFace Token
 
-# Configurações do Whisper
-whisper:
-  # Modelo: tiny, base, small, medium, large, large-v3, large-v3-turbo
-  model: "base"
+**Quando necessário**: Apenas para pyannote.audio (diarization no WhisperX)
 
-  # Idioma (auto para detecção automática)
-  language: "pt"
+**Como obter**:
+1. Criar conta gratuita: https://huggingface.co/join
+2. Gerar token: https://huggingface.co/settings/tokens
+3. Aceitar termos: https://huggingface.co/pyannote/speaker-diarization
 
-  # Backend: auto, mlx, cuda, cpu
-  # auto = detecta automaticamente baseado no hardware
-  backend: "auto"
-
-  # Configurações avançadas
-  device: "auto" # auto, cuda, cpu, mps
-  compute_type: "float16" # float16, int8, int8_float16
-
-  # VAD (Voice Activity Detection)
-  use_vad: true
-  vad_threshold: 0.5
-
-  # Buffer settings
-  min_chunk_size: 1.0 # segundos
-  buffer_trimming: "segment" # segment ou sentence
-
-# Configurações de Áudio
-audio:
-  sample_rate: 16000
-  channels: 1
-  chunk_duration: 1000 # milliseconds
-  device: "default" # default ou device ID específico
-
-# Configurações do Cliente
-client:
-  auto_reconnect: true
-  reconnect_delay: 2000 # milliseconds
-  max_reconnect_attempts: 5
-
-# Configurações de Display
-display:
-  show_partial: true
-  show_timestamps: true
-  timestamp_format: "HH:mm:ss"
-
-  # Cores (suporta: black, red, green, yellow, blue, magenta, cyan, white)
-  colors:
-    partial: "cyan"
-    final: "green"
-    timestamp: "gray"
-    error: "red"
-    info: "yellow"
-
-  # Formatação
-  clear_screen: false
-  auto_scroll: true
-  max_lines: 100
-
-# Configurações de Performance
-performance:
-  threads: 4 # Número de threads para Whisper
-  batch_size: 1
-
-# Paths
-paths:
-  models_dir: "./models"
-  logs_dir: "./logs"
-  cache_dir: "~/.cache/whisper-realtime"
-
-# Debug
-debug:
-  save_audio: false
-  audio_output_dir: "./debug/audio"
-  verbose: false
-  profile: false
-```
-
----
-
-## 🔧 Implementação Detalhada
-
-### 1. Entry Point (src/index.ts)
-
-```typescript
-#!/usr/bin/env bun
-
-/**
- * Entry point do sistema de transcrição
- * Comando: bun start
- */
-
-import { Orchestrator } from "./orchestrator";
-import { Logger } from "./utils/logger";
-import { loadConfig } from "./config";
-import chalk from "chalk";
-
-const logger = new Logger("main");
-
-async function main() {
-  try {
-    // Banner
-    console.clear();
-    console.log(
-      chalk.bold.cyan("╔═══════════════════════════════════════════════╗")
-    );
-    console.log(
-      chalk.bold.cyan("║   🎤 Whisper Real-Time Transcription         ║")
-    );
-    console.log(
-      chalk.bold.cyan("╚═══════════════════════════════════════════════╝")
-    );
-    console.log();
-
-    // Carregar configuração
-    logger.info("Carregando configuração...");
-    const config = await loadConfig();
-
-    // Criar orchestrator
-    const orchestrator = new Orchestrator(config);
-
-    // Inicializar sistema
-    await orchestrator.initialize();
-
-    // Iniciar transcrição
-    await orchestrator.start();
-
-    // Handle Ctrl+C
-    process.on("SIGINT", async () => {
-      console.log("\n");
-      logger.info("Encerrando...");
-      await orchestrator.stop();
-      process.exit(0);
-    });
-
-    // Manter processo vivo
-    await new Promise(() => {});
-  } catch (error) {
-    logger.error("Erro fatal:", error);
-    process.exit(1);
-  }
-}
-
-main();
-```
-
-### 2. Orchestrator (src/orchestrator.ts)
-
-```typescript
-import { Config } from "./types/config";
-import { HardwareDetector } from "./hardware-detector";
-import { ProcessManager } from "./process-manager";
-import { AudioCapture } from "./client/audio-capture";
-import { WebSocketClient } from "./client/websocket-client";
-import { TranscriptionDisplay } from "./client/transcription-display";
-import { Logger } from "./utils/logger";
-
-export class Orchestrator {
-  private config: Config;
-  private hardware: HardwareInfo;
-  private processManager: ProcessManager;
-  private audioCapture: AudioCapture;
-  private wsClient: WebSocketClient;
-  private display: TranscriptionDisplay;
-  private logger: Logger;
-
-  constructor(config: Config) {
-    this.config = config;
-    this.logger = new Logger("orchestrator");
-    this.processManager = new ProcessManager();
-  }
-
-  async initialize(): Promise<void> {
-    // 1. Detectar hardware
-    this.logger.info("Detectando hardware...");
-    const detector = new HardwareDetector();
-    this.hardware = await detector.detect();
-
-    this.logger.info(`Hardware: ${this.hardware.type}`);
-
-    // 2. Ajustar configuração baseado no hardware
-    this.adjustConfigForHardware();
-
-    // 3. Verificar dependências
-    await this.checkDependencies();
-
-    // 4. Iniciar servidor Python
-    if (this.config.server.auto_start) {
-      await this.startServer();
-    }
-
-    // 5. Aguardar servidor estar pronto
-    await this.waitForServer();
-
-    // 6. Inicializar componentes do cliente
-    this.initializeClient();
-  }
-
-  async start(): Promise<void> {
-    this.logger.info("Iniciando transcrição...");
-
-    // Conectar ao servidor
-    await this.wsClient.connect();
-
-    // Iniciar captura de áudio
-    await this.audioCapture.start();
-
-    this.logger.success("Sistema pronto! Fale no microfone...");
-  }
-
-  async stop(): Promise<void> {
-    // Parar captura
-    await this.audioCapture?.stop();
-
-    // Desconectar WebSocket
-    await this.wsClient?.disconnect();
-
-    // Parar servidor
-    if (this.config.server.auto_start) {
-      await this.processManager.stopServer();
-    }
-
-    this.logger.info("Sistema encerrado");
-  }
-
-  private adjustConfigForHardware(): void {
-    if (this.config.whisper.backend === "auto") {
-      switch (this.hardware.type) {
-        case "apple_silicon":
-          this.config.whisper.backend = "mlx";
-          break;
-        case "cuda":
-          this.config.whisper.backend = "cuda";
-          break;
-        default:
-          this.config.whisper.backend = "cpu";
-      }
-    }
-
-    this.logger.info(`Backend selecionado: ${this.config.whisper.backend}`);
-  }
-
-  private async startServer(): Promise<void> {
-    this.logger.info("Iniciando servidor Python...");
-
-    const serverConfig = {
-      host: this.config.server.host,
-      port: this.config.server.port,
-      model: this.config.whisper.model,
-      language: this.config.whisper.language,
-      backend: this.config.whisper.backend,
-      use_vad: this.config.whisper.use_vad,
-    };
-
-    await this.processManager.startServer(serverConfig);
-  }
-
-  private async waitForServer(): Promise<void> {
-    this.logger.info("Aguardando servidor...");
-
-    const maxAttempts = 30;
-    let attempts = 0;
-
-    while (attempts < maxAttempts) {
-      try {
-        const response = await fetch(
-          `http://localhost:${this.config.server.port}/health`
-        );
-        if (response.ok) {
-          this.logger.success("Servidor pronto!");
-          return;
-        }
-      } catch (error) {
-        // Servidor ainda não está pronto
-      }
-
-      await Bun.sleep(1000);
-      attempts++;
-    }
-
-    throw new Error("Timeout aguardando servidor");
-  }
-
-  private initializeClient(): void {
-    // Display
-    this.display = new TranscriptionDisplay(this.config.display);
-
-    // WebSocket Client
-    this.wsClient = new WebSocketClient(
-      this.config.server.host,
-      this.config.server.port,
-      {
-        onTranscription: (text, isFinal) => {
-          this.display.addTranscription(text, isFinal);
-        },
-        onError: (error) => {
-          this.logger.error("WebSocket error:", error);
-        },
-      }
-    );
-
-    // Audio Capture
-    this.audioCapture = new AudioCapture(this.config.audio, (audioData) => {
-      this.wsClient.sendAudio(audioData);
-    });
-  }
-
-  private async checkDependencies(): Promise<void> {
-    // Verificar Python
-    const pythonCheck = await $`python3 --version`.quiet();
-    if (pythonCheck.exitCode !== 0) {
-      throw new Error("Python 3 não encontrado");
-    }
-
-    // Verificar sox (para captura de áudio)
-    const soxCheck = await $`sox --version`.quiet();
-    if (soxCheck.exitCode !== 0) {
-      this.logger.warn("sox não encontrado - usando fallback");
-    }
-
-    this.logger.success("Dependências verificadas");
-  }
-}
-```
-
-### 3. Hardware Detector (src/hardware-detector.ts)
-
-```typescript
-import { exec } from "child_process";
-import { promisify } from "util";
-
-const execAsync = promisify(exec);
-
-export interface HardwareInfo {
-  type: "apple_silicon" | "cuda" | "cpu";
-  details: {
-    gpu?: string;
-    memory?: string;
-    cores?: number;
-  };
-}
-
-export class HardwareDetector {
-  async detect(): Promise<HardwareInfo> {
-    // Detectar Apple Silicon
-    if (await this.isAppleSilicon()) {
-      return {
-        type: "apple_silicon",
-        details: await this.getAppleInfo(),
-      };
-    }
-
-    // Detectar CUDA
-    if (await this.hasCUDA()) {
-      return {
-        type: "cuda",
-        details: await this.getCUDAInfo(),
-      };
-    }
-
-    // Fallback para CPU
-    return {
-      type: "cpu",
-      details: await this.getCPUInfo(),
-    };
-  }
-
-  private async isAppleSilicon(): Promise<boolean> {
-    try {
-      const { stdout } = await execAsync("uname -m");
-      return stdout.trim() === "arm64" && process.platform === "darwin";
-    } catch {
-      return false;
-    }
-  }
-
-  private async hasCUDA(): Promise<boolean> {
-    try {
-      const { stdout } = await execAsync(
-        "nvidia-smi --query-gpu=name --format=csv,noheader"
-      );
-      return stdout.length > 0;
-    } catch {
-      return false;
-    }
-  }
-
-  private async getAppleInfo(): Promise<any> {
-    try {
-      const { stdout } = await execAsync("sysctl -n hw.model");
-      return {
-        gpu: "Apple Silicon",
-        model: stdout.trim(),
-      };
-    } catch {
-      return {};
-    }
-  }
-
-  private async getCUDAInfo(): Promise<any> {
-    try {
-      const { stdout } = await execAsync(
-        "nvidia-smi --query-gpu=name,memory.total --format=csv,noheader"
-      );
-      const [gpu, memory] = stdout.trim().split(",");
-      return { gpu: gpu.trim(), memory: memory.trim() };
-    } catch {
-      return {};
-    }
-  }
-
-  private async getCPUInfo(): Promise<any> {
-    const cores = require("os").cpus().length;
-    return { cores };
-  }
-}
-```
-
-### 4. Terminal UI (src/client/terminal-ui.ts)
-
-```typescript
-import chalk from "chalk";
-import ora from "ora";
-
-export interface DisplayConfig {
-  show_partial: boolean;
-  show_timestamps: boolean;
-  timestamp_format: string;
-  colors: {
-    partial: string;
-    final: string;
-    timestamp: string;
-    error: string;
-    info: string;
-  };
-  clear_screen: boolean;
-  auto_scroll: boolean;
-  max_lines: number;
-}
-
-export class TranscriptionDisplay {
-  private config: DisplayConfig;
-  private lines: string[] = [];
-  private spinner: any;
-
-  constructor(config: DisplayConfig) {
-    this.config = config;
-
-    if (config.clear_screen) {
-      console.clear();
-    }
-
-    this.printHeader();
-  }
-
-  private printHeader(): void {
-    console.log(chalk.bold.cyan("═".repeat(60)));
-    console.log(chalk.bold.cyan("  🎤 Transcrição em Tempo Real"));
-    console.log(chalk.bold.cyan("═".repeat(60)));
-    console.log();
-  }
-
-  addTranscription(text: string, isFinal: boolean): void {
-    // Parar spinner se existir
-    if (this.spinner) {
-      this.spinner.stop();
-      this.spinner = null;
-    }
-
-    const timestamp = this.config.show_timestamps ? this.formatTimestamp() : "";
-
-    const color = isFinal
-      ? this.getColor(this.config.colors.final)
-      : this.getColor(this.config.colors.partial);
-
-    const icon = isFinal ? "✅" : "🎤";
-
-    const line = `${timestamp}${icon} ${color(text)}`;
-
-    if (isFinal) {
-      // Transcrição final - adicionar às linhas
-      this.lines.push(line);
-      console.log(line);
-
-      // Limitar número de linhas
-      if (this.lines.length > this.config.max_lines) {
-        this.lines.shift();
-        if (this.config.auto_scroll) {
-          this.redraw();
-        }
-      }
-    } else {
-      // Transcrição parcial - substituir linha atual
-      if (this.config.show_partial) {
-        process.stdout.write("\r\x1b[K" + line);
-      }
-    }
-  }
-
-  showListening(): void {
-    this.spinner = ora({
-      text: "Aguardando fala...",
-      color: "cyan",
-    }).start();
-  }
-
-  showError(message: string): void {
-    const color = this.getColor(this.config.colors.error);
-    console.log(`\n❌ ${color(message)}`);
-  }
-
-  showInfo(message: string): void {
-    const color = this.getColor(this.config.colors.info);
-    console.log(`ℹ️  ${color(message)}`);
-  }
-
-  private formatTimestamp(): string {
-    const now = new Date();
-    const hours = String(now.getHours()).padStart(2, "0");
-    const minutes = String(now.getMinutes()).padStart(2, "0");
-    const seconds = String(now.getSeconds()).padStart(2, "0");
-
-    const timestamp = `[${hours}:${minutes}:${seconds}] `;
-    const color = this.getColor(this.config.colors.timestamp);
-
-    return color(timestamp);
-  }
-
-  private getColor(colorName: string): (text: string) => string {
-    const colors: Record<string, any> = {
-      black: chalk.black,
-      red: chalk.red,
-      green: chalk.green,
-      yellow: chalk.yellow,
-      blue: chalk.blue,
-      magenta: chalk.magenta,
-      cyan: chalk.cyan,
-      white: chalk.white,
-      gray: chalk.gray,
-    };
-
-    return colors[colorName] || chalk.white;
-  }
-
-  private redraw(): void {
-    if (this.config.clear_screen) {
-      console.clear();
-      this.printHeader();
-      this.lines.forEach((line) => console.log(line));
-    }
-  }
-}
-```
-
-### 5. Servidor Python (server/main.py)
-
-```python
-#!/usr/bin/env python3
-"""
-Servidor WebSocket para transcrição Whisper
-"""
-
-import asyncio
-import sys
-import argparse
-from pathlib import Path
-
-from config import ServerConfig
-from websocket_handler import WebSocketHandler
-from whisper_processor import WhisperProcessor
-from utils.logger import setup_logger
-
-logger = setup_logger(__name__)
-
-
-async def health_check(request):
-    """Health check endpoint"""
-    return web.Response(text='OK')
-
-
-async def main(config: ServerConfig):
-    # Inicializar processador Whisper
-    logger.info(f"Inicializando Whisper (modelo: {config.model}, backend: {config.backend})")
-    processor = WhisperProcessor(config)
-    await processor.initialize()
-
-    # Criar handler WebSocket
-    handler = WebSocketHandler(processor, config)
-
-    # Iniciar servidor
-    from aiohttp import web
-    app = web.Application()
-    app.router.add_get('/health', health_check)
-    app.router.add_get('/ws', handler.handle_websocket)
-
-    runner = web.AppRunner(app)
-    await runner.setup()
-
-    site = web.TCPSite(runner, config.host, config.port)
-    await site.start()
-
-    logger.info(f"✅ Servidor rodando em ws://{config.host}:{config.port}")
-    logger.info(f"Backend: {config.backend} | VAD: {config.use_vad}")
-
-    # Manter rodando
-    try:
-        await asyncio.Future()
-    except KeyboardInterrupt:
-        logger.info("Encerrando servidor...")
-        await runner.cleanup()
-
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--host', default='0.0.0.0')
-    parser.add_argument('--port', type=int, default=9090)
-    parser.add_argument('--model', default='base')
-    parser.add_argument('--language', default='pt')
-    parser.add_argument('--backend', default='auto')
-    parser.add_argument('--use-vad', action='store_true', default=True)
-    parser.add_argument('--config', help='Path to config file')
-
-    args = parser.parse_args()
-
-    # Criar configuração
-    if args.config:
-        config = ServerConfig.from_file(args.config)
-    else:
-        config = ServerConfig(
-            host=args.host,
-            port=args.port,
-            model=args.model,
-            language=args.language,
-            backend=args.backend,
-            use_vad=args.use_vad
-        )
-
-    try:
-        asyncio.run(main(config))
-    except KeyboardInterrupt:
-        logger.info("Servidor encerrado")
-        sys.exit(0)
-```
-
----
-
-## 📦 package.json
-
-```json
-{
-  "name": "whisper-realtime",
-  "version": "1.0.0",
-  "description": "Sistema de transcrição em tempo real com Whisper",
-  "type": "module",
-  "scripts": {
-    "start": "bun run src/index.ts",
-    "dev": "bun --watch run src/index.ts",
-    "build": "bun build src/index.ts --outdir dist --target bun",
-    "test": "bun test",
-    "install:python": "cd server && poetry install",
-    "install:all": "bun install && bun run install:python",
-    "setup": "bun run scripts/install.sh",
-    "clean": "rm -rf dist logs/*.log"
-  },
-  "dependencies": {
-    "ws": "^8.16.0",
-    "chalk": "^5.3.0",
-    "ora": "^8.0.1",
-    "yaml": "^2.3.4",
-    "zod": "^3.22.4"
-  },
-  "devDependencies": {
-    "@types/bun": "latest",
-    "@types/ws": "^8.5.10",
-    "@types/node": "^20.11.5",
-    "bun-types": "latest"
-  },
-  "peerDependencies": {
-    "typescript": "^5.3.3"
-  }
-}
-```
-
----
-
-## 🐍 pyproject.toml
-
-```toml
-[tool.poetry]
-name = "whisper-realtime-server"
-version = "1.0.0"
-description = "Servidor WebSocket para transcrição Whisper"
-authors = ["Your Name <you@example.com>"]
-
-[tool.poetry.dependencies]
-python = "^3.10"
-aiohttp = "^3.9.0"
-websockets = "^12.0"
-numpy = "^1.24.0"
-librosa = "^0.10.0"
-soundfile = "^0.12.0"
-
-# Whisper streaming
-whisper-streaming = {git = "https://github.com/ufal/whisper_streaming.git"}
-
-# Backends (opcionais)
-mlx-whisper = {version = "^0.3.0", optional = true, markers = "sys_platform == 'darwin' and platform_machine == 'arm64'"}
-faster-whisper = {version = "^1.0.0", optional = true}
-
-[tool.poetry.extras]
-mlx = ["mlx-whisper"]
-cuda = ["faster-whisper"]
-
-[tool.poetry.group.dev.dependencies]
-pytest = "^7.4.0"
-pytest-asyncio = "^0.21.0"
-black = "^23.12.0"
-ruff = "^0.1.9"
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
-```
-
----
-
-## 🚀 Scripts de Instalação
-
-### scripts/install.sh
-
+**Como usar**:
 ```bash
-#!/bin/bash
-set -e
+# Opção 1: Environment variable
+export HUGGINGFACE_TOKEN="hf_..."
 
-echo "🚀 Instalando Whisper Real-Time Transcription"
-echo ""
-
-# Detectar sistema operacional
-OS="$(uname -s)"
-ARCH="$(uname -m)"
-
-echo "📊 Sistema: $OS $ARCH"
-echo ""
-
-# 1. Instalar sox
-echo "📦 Instalando sox..."
-if [[ "$OS" == "Darwin" ]]; then
-    brew install sox
-elif [[ "$OS" == "Linux" ]]; then
-    sudo apt-get update && sudo apt-get install -y sox
-fi
-
-# 2. Verificar Python
-echo "🐍 Verificando Python..."
-if ! command -v python3 &> /dev/null; then
-    echo "❌ Python 3 não encontrado. Instale Python 3.10+"
-    exit 1
-fi
-
-# 3. Instalar Poetry
-echo "📚 Instalando Poetry..."
-if ! command -v poetry &> /dev/null; then
-    curl -sSL https://install.python-poetry.org | python3 -
-fi
-
-# 4. Instalar dependências Python
-echo "📦 Instalando dependências Python..."
-cd server
-poetry install
-
-# Instalar backend específico baseado no hardware
-if [[ "$ARCH" == "arm64" ]] && [[ "$OS" == "Darwin" ]]; then
-    echo "🍎 Apple Silicon detectado - instalando MLX..."
-    poetry install -E mlx
-elif command -v nvidia-smi &> /dev/null; then
-    echo "🎮 NVIDIA GPU detectada - instalando CUDA..."
-    poetry install -E cuda
-else
-    echo "💻 CPU mode"
-fi
-
-cd ..
-
-# 5. Instalar Bun
-echo "🥟 Verificando Bun..."
-if ! command -v bun &> /dev/null; then
-    echo "Instalando Bun..."
-    curl -fsSL https://bun.sh/install | bash
-fi
-
-# 6. Instalar dependências Bun
-echo "📦 Instalando dependências Bun..."
-bun install
-
-# 7. Copiar config exemplo
-if [ ! -f config.yaml ]; then
-    cp config.example.yaml config.yaml
-    echo "✅ config.yaml criado"
-fi
-
-echo ""
-echo "✅ Instalação completa!"
-echo ""
-echo "Para iniciar, execute:"
-echo "  bun start"
-echo ""
+# Opção 2: Config file
+# config.yaml
+backend:
+  huggingface_token: "hf_..."
 ```
+
+**O que o token faz**:
+- Faz download do modelo de diarization (primeira vez)
+- Modelos ficam em cache local (~/.cache/huggingface)
+- Após download, funciona offline
 
 ---
 
-## 📖 README.md
+## 📊 Performance Benchmarks
 
-````markdown
-# 🎤 Whisper Real-Time Transcription
+### Latência Esperada (modelo large-v3)
 
-Sistema de transcrição em tempo real usando OpenAI Whisper com interface de terminal elegante.
+| Backend | Hardware | Latência | Qualidade |
+|---------|----------|----------|-----------|
+| MLX | Mac M1 (medium) | ~0.25x RT | ⭐⭐⭐⭐ |
+| faster-whisper | Mac M1 (distil-large-v3) | ~0.16x RT | ⭐⭐⭐⭐⭐ |
+| faster-whisper | RTX 4090 (distil-large-v3) | ~0.05x RT | ⭐⭐⭐⭐⭐ |
+| WhisperX | RTX 4090 | ~0.10x RT | ⭐⭐⭐⭐⭐ |
+| SeamlessM4T | RTX 4090 | ~0.20x RT | ⭐⭐⭐⭐ |
 
-## ✨ Features
+*RT = Realtime (1.0x = mesma velocidade da fala)*
 
-- 🚀 **Comando único**: `bun start` e pronto!
-- ⚡ **Baixa latência**: < 3 segundos
-- 🎯 **Auto-detecção**: Detecta hardware (Apple Silicon, CUDA, CPU)
-- ⚙️ **Configurável**: Tudo via `config.yaml`
-- 🎨 **Terminal elegante**: Cores, timestamps, auto-scroll
-- 🔄 **Robusto**: Reconexão automática, tratamento de erros
+### Uso de Memória
 
-## 🚀 Quick Start
-
-### 1. Instalação
-
-```bash
-# Clone o repositório
-git clone https://github.com/user/whisper-realtime.git
-cd whisper-realtime
-
-# Instale tudo
-./scripts/install.sh
-```
-````
-
-### 2. Uso
-
-```bash
-# Simplesmente rode
-bun start
-
-# Fale no microfone e veja a transcrição aparecer!
-```
-
-## ⚙️ Configuração
-
-Edite `config.yaml`:
-
-```yaml
-whisper:
-  model: "base" # tiny, base, small, medium, large
-  language: "pt" # pt, en, es, etc
-  backend: "auto" # auto, mlx, cuda, cpu
-
-audio:
-  sample_rate: 16000
-  device: "default"
-
-display:
-  show_partial: true
-  show_timestamps: true
-  colors:
-    final: "green"
-    partial: "cyan"
-```
-
-## 🖥️ Requisitos
-
-- Python 3.10+
-- Bun 1.0+
-- sox (audio capture)
-- macOS ou Linux (CUDA opcional)
-
-## 📚 Documentação
-
-- [Arquitetura](docs/ARCHITECTURE.md)
-- [Configuração Avançada](docs/CONFIGURATION.md)
-- [Troubleshooting](docs/TROUBLESHOOTING.md)
-- [API](docs/API.md)
-
-## 📄 Licença
-
-MIT License - veja [LICENSE](LICENSE)
-
-```
-
----
-
-## ✅ Checklist de Implementação
-
-### Fase 1: Setup Inicial
-- [ ] Criar estrutura de diretórios
-- [ ] Configurar package.json e pyproject.toml
-- [ ] Criar arquivos de configuração
-- [ ] Implementar sistema de logging
-- [ ] Scripts de instalação
-
-### Fase 2: Core Backend
-- [ ] Implementar detector de hardware
-- [ ] Criar abstrações de backends (MLX, CUDA, CPU)
-- [ ] Implementar processador Whisper
-- [ ] Servidor WebSocket Python
-- [ ] Health check endpoint
-
-### Fase 3: Core Frontend
-- [ ] Orchestrator TypeScript
-- [ ] Process manager
-- [ ] Config loader com validação
-- [ ] WebSocket client
-- [ ] Audio capture
-
-### Fase 4: UI/UX
-- [ ] Terminal UI com cores
-- [ ] Display de transcrições
-- [ ] Progress indicators
-- [ ] Error handling visual
-- [ ] Keyboard shortcuts
-
-### Fase 5: Testing
-- [ ] Testes unitários (TypeScript)
-- [ ] Testes unitários (Python)
-- [ ] Testes de integração
-- [ ] Testes E2E
-- [ ] Performance testing
-
-### Fase 6: Documentação
-- [ ] README completo
-- [ ] Documentação de arquitetura
-- [ ] Guia de configuração
-- [ ] Troubleshooting guide
-- [ ] API documentation
-
-### Fase 7: Polish
-- [ ] CI/CD setup
-- [ ] Release scripts
-- [ ] Docker support
-- [ ] Benchmarks
-- [ ] Demo video
+| Backend | Modelo | VRAM (GPU) | RAM |
+|---------|--------|------------|-----|
+| MLX | medium | - | ~2GB |
+| faster-whisper | distil-large-v3 | ~3GB | ~2GB |
+| WhisperX | large-v3 | ~6GB | ~4GB |
+| SeamlessM4T | large | ~12GB | ~8GB |
 
 ---
 
 ## 🎯 Critérios de Aceitação
 
-### Para Entrega Mínima (MVP)
+### MVP (Semana 1-2)
 
-✅ **Funcional**
-- [ ] `bun start` inicia sistema completo
-- [ ] Transcrição aparece no terminal enquanto fala
-- [ ] Suporta macOS e Linux com CUDA
-- [ ] Configurável via config.yaml
+✅ **Backend Factory implementado**
+- [ ] Platform detection funciona
+- [ ] BackendRegistry valida compatibilidade
+- [ ] Erro claro se backend incompatível
 
-✅ **Qualidade**
-- [ ] Latência < 3s com modelo base
-- [ ] Graceful shutdown (Ctrl+C)
-- [ ] Logs informativos
-- [ ] Tratamento de erros básico
+✅ **Faster-Whisper com distil-large-v3**
+- [ ] 6x mais rápido que large-v3
+- [ ] Word timestamps funcionando
+- [ ] Menos alucinações
 
-✅ **Documentação**
-- [ ] README com quick start
-- [ ] Config exemplo comentado
-- [ ] Script de instalação funcional
+✅ **Protocolo WebSocket unificado**
+- [ ] TranscriptionResult normalizado
+- [ ] Cliente renderiza baseado em capabilities
 
-### Para Entrega Completa
+### Diarization (Semana 3-4)
 
-Todos itens do MVP +
+✅ **WhisperX Backend**
+- [ ] Funciona em CUDA
+- [ ] Speaker labels corretos
+- [ ] HuggingFace token configurável
 
-✅ **Funcionalidades Avançadas**
-- [ ] Auto-reconexão
-- [ ] Suporte múltiplos modelos
-- [ ] VAD configurável
-- [ ] Keyboard shortcuts
+✅ **UI com speakers**
+- [ ] Cliente mostra speaker labels
+- [ ] Cores diferentes por speaker
 
-✅ **Qualidade**
-- [ ] Cobertura de testes > 80%
-- [ ] Performance otimizada
-- [ ] Memory leaks detectados/corrigidos
-- [ ] Profiling e benchmarks
+### Translation (Semana 5-6)
 
-✅ **DevEx**
-- [ ] Hot reload (modo dev)
-- [ ] Debug mode
-- [ ] Logs estruturados
-- [ ] Error messages úteis
+✅ **SeamlessM4T Backend**
+- [ ] Transcrição + tradução simultânea
+- [ ] Múltiplos idiomas alvo
+- [ ] Performance aceitável
 
 ---
 
-## 📈 Roadmap Futuro
+## 🚀 Next Steps
 
-### v1.1
-- [ ] Interface web opcional
-- [ ] Suporte múltiplas línguas simultâneas
-- [ ] Export de transcrições (txt, srt, vtt)
-- [ ] Estatísticas (WPM, accuracy)
+Ver **PLAN.md** para roadmap detalhado de implementação.
 
-### v1.2
-- [ ] Suporte Docker
-- [ ] Deploy scripts (Railway, Render)
-- [ ] API REST opcional
-- [ ] Dashboard web
-
-### v2.0
-- [ ] Speaker diarization
-- [ ] Punctuation restoration
-- [ ] Real-time translation
-- [ ] Plugin system
+**Próxima tarefa**: Implementar Backend Factory (Sprint 1)
 
 ---
 
-**Data de Criação**: 2025-10-17
-**Versão**: 1.0.0
-**Status**: Especificação Completa
-**Próximo Passo**: Implementação
-```
+**Versão**: 2.0.0
+**Data de Última Atualização**: 2025-10-17
+**Aprovado para implementação**: ✅

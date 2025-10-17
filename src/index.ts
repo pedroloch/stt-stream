@@ -31,6 +31,8 @@ import {
 
 } from "./types";
 
+import config from '../config.example.yaml'
+
 class WhisperStreamClient {
   private config: Config;
   private ws: WebSocket | null = null;
@@ -53,40 +55,42 @@ class WhisperStreamClient {
   // Debug mode
   private debugMode: boolean;
 
-  constructor(configPath: string = "config.yaml") {
+  constructor(configPath: string = "../config.example.yaml") {
+    this.config = config as Config;
     // Carregar config
-    if (existsSync(configPath)) {
-      const configFile = readFileSync(configPath, "utf-8");
-      this.config = parse(configFile) as Config;
-    } else {
-      // Config padrão se arquivo não existe
-      console.log(chalk.yellow(`⚠️  Config file not found: ${configPath}`));
-      console.log(chalk.yellow("Using default configuration..."));
-      this.config = {
-        server: {
-          url: "ws://localhost:9090/ws",
-          health_url: "http://localhost:9090/health",
-        },
-        audio: {
-          sample_rate: 16000,
-          channels: 1,
-        },
-        display: {
-          show_partial: true,
-          show_timestamps: true,
-          colors: {
-            partial: "cyan",
-            final: "green",
-            error: "red",
-            info: "yellow",
-            debug: "gray",
-            header: "cyan",
-          },
-          max_history: 50,
-          word_wrap_width: 80,
-        },
-      };
-    }
+    // if (existsSync(configPath)) {
+    //   const configFile = readFileSync(configPath, "utf-8");
+
+    //   this.config = parse(configFile) as Config;
+    // } else {
+    //   // Config padrão se arquivo não existe
+    //   console.log(chalk.yellow(`⚠️  Config file not found: ${configPath}`));
+    //   console.log(chalk.yellow("Using default configuration..."));
+    //   this.config = {
+    //     server: {
+    //       url: "ws://localhost:9090/ws",
+    //       health_url: "http://localhost:9090/health",
+    //     },
+    //     audio: {
+    //       sample_rate: 16000,
+    //       channels: 1,
+    //     },
+    //     display: {
+    //       show_partial: true,
+    //       show_timestamps: true,
+    //       colors: {
+    //         partial: "cyan",
+    //         final: "green",
+    //         error: "red",
+    //         info: "yellow",
+    //         debug: "gray",
+    //         header: "cyan",
+    //       },
+    //       max_history: 50,
+    //       word_wrap_width: 80,
+    //     },
+    //   };
+    // }
 
     // Debug mode: ler de env ou config
     this.debugMode =
