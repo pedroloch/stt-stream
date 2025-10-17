@@ -20,9 +20,22 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Variáveis configuráveis
-DOCKER_USERNAME="${DOCKER_USERNAME:-seu-usuario}"  # Altere ou defina via env
 IMAGE_NAME="whisper-stream-runpod"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
+
+# Detectar username do Docker Hub
+if [ -z "$DOCKER_USERNAME" ] || [ "$DOCKER_USERNAME" = "seu-usuario" ]; then
+    # Tentar obter do docker info
+    DOCKER_USERNAME=$(docker info 2>/dev/null | grep "Username:" | awk '{print $2}')
+
+    # Se ainda não tiver, pedir interativamente
+    if [ -z "$DOCKER_USERNAME" ]; then
+        echo -e "${YELLOW}⚠️  Docker username não definido${NC}"
+        echo -e "${BLUE}Digite seu username do Docker Hub:${NC}"
+        read -r DOCKER_USERNAME
+    fi
+fi
+
 FULL_IMAGE_NAME="${DOCKER_USERNAME}/${IMAGE_NAME}:${IMAGE_TAG}"
 
 # Banner
@@ -66,20 +79,55 @@ check_docker() {
 # Build da imagem
 build_image() {
     print_info "Fazendo build da imagem Docker..."
-    echo ""
 
-    docker build \
-        -f Dockerfile.runpod \
-        -t "${IMAGE_NAME}:${IMAGE_TAG}" \
-        -t "${FULL_IMAGE_NAME}" \
-        --progress=plain \
-        .
+    # Detectar arquitetura (RunPod usa x86_64/amd64)
+    ARCH=$(uname -m)
+    if [ "$ARCH" = "arm64" ] || [ "$ARCH" = "aarch64" ]; then
+        print_warning "Detectado Apple Silicon/ARM64"
+        print_info "Usando buildx para cross-platform build (linux/amd64)"
+        echo ""
+
+        # Garantir que buildx existe
+        if ! docker buildx version &> /dev/null; then
+            print_error "docker buildx não disponível"
+            echo "Atualize Docker Desktop para versão mais recente"
+            exit 1
+        fi
+
+        # Criar builder se não existir
+        if ! docker buildx inspect multiarch &> /dev/null; then
+            print_info "Criando builder multiarch..."
+            docker buildx create --name multiarch --use
+        else
+            docker buildx use multiarch
+        fi
+
+        # Build cross-platform para linux/amd64 (RunPod)
+        docker buildx build \
+            --platform linux/amd64 \
+            -f Dockerfile.runpod \
+            -t "${IMAGE_NAME}:${IMAGE_TAG}" \
+            -t "${FULL_IMAGE_NAME}" \
+            --load \
+            .
+    else
+        print_info "Detectado x86_64/amd64 - build nativo"
+        echo ""
+
+        # Build normal para mesma arquitetura
+        docker build \
+            -f Dockerfile.runpod \
+            -t "${IMAGE_NAME}:${IMAGE_TAG}" \
+            -t "${FULL_IMAGE_NAME}" \
+            --progress=plain \
+            .
+    fi
 
     echo ""
     print_success "Imagem construída: ${FULL_IMAGE_NAME}"
 
     # Mostrar tamanho da imagem
-    SIZE=$(docker images "${IMAGE_NAME}:${IMAGE_TAG}" --format "{{.Size}}")
+    SIZE=$(docker images "${IMAGE_NAME}:${IMAGE_TAG}" --format "{{.Size}}" 2>/dev/null || echo "N/A")
     print_info "Tamanho da imagem: ${SIZE}"
 }
 
