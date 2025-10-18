@@ -234,14 +234,32 @@ class PyannoteBackend(DiarizationBackend):
         # Converter resultado para lista de segmentos
         segments: list[tuple[float, float, str]] = []
 
-        for turn, _, speaker in diarization.itertracks(yield_label=True):
-            # turn: Segment object com start e end
-            # speaker: string como "SPEAKER_00", "SPEAKER_01", etc
-            start_time = turn.start + self.buffer_offset
-            end_time = turn.end + self.buffer_offset
-
-            # speaker já é string no formato correto
-            segments.append((start_time, end_time, speaker))
+        # Pyannote 3.3+ retorna DiarizeOutput, versões antigas retornam Annotation
+        # DiarizeOutput tem atributo 'segments', Annotation tem método 'itertracks()'
+        if hasattr(diarization, 'segments'):
+            # Nova API (pyannote 3.3+): DiarizeOutput com atributo 'segments'
+            for segment in diarization.segments:
+                start_time = segment.start + self.buffer_offset
+                end_time = segment.end + self.buffer_offset
+                speaker_id = segment.speaker if hasattr(segment, 'speaker') else segment.label
+                segments.append((start_time, end_time, speaker_id))
+        elif hasattr(diarization, 'itertracks'):
+            # API antiga (pyannote < 3.3): Annotation com método itertracks()
+            for turn, _, speaker in diarization.itertracks(yield_label=True):
+                # turn: Segment object com start e end
+                # speaker: string como "SPEAKER_00", "SPEAKER_01", etc
+                start_time = turn.start + self.buffer_offset
+                end_time = turn.end + self.buffer_offset
+                segments.append((start_time, end_time, speaker))
+        else:
+            # Fallback: tentar iterar diretamente
+            logger.warning(f"Formato desconhecido de diarization output: {type(diarization)}")
+            for item in diarization:
+                if hasattr(item, 'start') and hasattr(item, 'end'):
+                    start_time = item.start + self.buffer_offset
+                    end_time = item.end + self.buffer_offset
+                    speaker_id = getattr(item, 'speaker', getattr(item, 'label', 'SPEAKER_00'))
+                    segments.append((start_time, end_time, speaker_id))
 
         return segments
 
