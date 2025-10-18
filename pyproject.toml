@@ -42,7 +42,7 @@ nvidia-cudnn-cu12 = {version = "^9.1.0", optional = true, markers = "sys_platfor
 #   poetry install --extras "diarization-sortformer"
 
 # Diarization (speaker identification) - opcionais
-nemo-toolkit = {version = ">=2.2.0,<3.0.0", optional = true, extras = ["asr"]}  # Sortformer backend (2.2.x ou 2.5.x)
+nemo-toolkit = {version = ">=2.5.0,<3.0.0", optional = true, extras = ["asr"]}  # Sortformer backend (2.5.x tem suporte aos parâmetros do modelo)
 pyannote-audio = {version = "^3.3.0", optional = true}  # Pyannote backend
 
 [tool.poetry.extras]
