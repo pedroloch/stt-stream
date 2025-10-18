@@ -67,11 +67,38 @@ echo ""
 echo "📦 Instalando Poetry..."
 if ! command -v poetry &> /dev/null; then
     curl -sSL https://install.python-poetry.org | python3 -
+
+    # Adicionar ao PATH permanentemente
+    if ! grep -q '/root/.local/bin' ~/.bashrc; then
+        echo 'export PATH="/root/.local/bin:$PATH"' >> ~/.bashrc
+    fi
+
+    # Carregar PATH para sessão atual
     export PATH="/root/.local/bin:$PATH"
-    echo 'export PATH="/root/.local/bin:$PATH"' >> ~/.bashrc
-    echo "✅ Poetry instalado"
+
+    # Verificar se Poetry agora está disponível
+    if command -v poetry &> /dev/null; then
+        echo "✅ Poetry instalado: $(poetry --version)"
+    else
+        echo "⚠️  Poetry instalado mas não encontrado no PATH"
+        echo "   Execute: source ~/.bashrc"
+        echo "   Ou use caminho completo: /root/.local/bin/poetry"
+    fi
 else
-    echo "✅ Poetry já instalado"
+    echo "✅ Poetry já instalado: $(poetry --version)"
+fi
+
+# Garantir que poetry está disponível (fallback para caminho completo)
+if ! command -v poetry &> /dev/null; then
+    if [ -f "/root/.local/bin/poetry" ]; then
+        echo "⚙️  Configurando PATH do Poetry..."
+        export PATH="/root/.local/bin:$PATH"
+        alias poetry='/root/.local/bin/poetry'
+    else
+        echo "❌ Poetry não encontrado em /root/.local/bin/poetry"
+        echo "   Por favor, instale manualmente ou verifique instalação"
+        exit 1
+    fi
 fi
 
 # 3.5. Limpeza de conflitos (garantir instalação limpa)
