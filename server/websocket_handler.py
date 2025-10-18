@@ -75,7 +75,7 @@ class WebSocketHandler:
         buffer_config = BufferConfig(
             min_chunk_size=self.config.whisper.min_chunk_size,
             buffer_trimming=self.config.whisper.buffer_trimming,
-            buffer_trimming_sec=getattr(self.config.whisper, 'buffer_trimming_sec', 15.0),  # Novo parâmetro
+            buffer_trimming_sec=self.config.whisper.buffer_trimming_sec,
             agreement_threshold=2,  # Deprecated mas mantido por compatibilidade
         )
         self.streaming_buffers[client_id] = StreamingBuffer(
@@ -173,7 +173,7 @@ class WebSocketHandler:
                 buffer_config = BufferConfig(
                     min_chunk_size=self.config.whisper.min_chunk_size,
                     buffer_trimming=self.config.whisper.buffer_trimming,
-                    buffer_trimming_sec=getattr(self.config.whisper, 'buffer_trimming_sec', 15.0),
+                    buffer_trimming_sec=self.config.whisper.buffer_trimming_sec,
                     agreement_threshold=2,  # Deprecated
                 )
                 buffer = StreamingBuffer(
