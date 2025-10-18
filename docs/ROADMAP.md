@@ -113,53 +113,143 @@
 
 ---
 
-## 🗂️ Roadmap em Fases
+## 🗂️ Roadmap em Fases (ATUALIZADO 2025-10-18)
 
-### **FASE 0: Fundação - Streaming Inteligente** ⭐ CRÍTICO
-**Duração**: 2 semanas
-**Objetivo**: Implementar streaming real-time com LocalAgreement
+### **FASE 0: API Batch - Fundação** ⭐⭐⭐ MÁXIMA PRIORIDADE
+**Duração**: 2-3 semanas
+**Objetivo**: Endpoint `/v1/transcribe` para batch processing compatível com OpenAI Whisper-1
+
+**Por quê primeiro?**
+- Permite comparação de modelos (benchmarking)
+- Use case importante: transcrever arquivos gravados
+- Base para adicionar novos modelos incrementalmente
+- Streaming já funciona (pode esperar refinamento)
 
 #### Tasks:
 
-**0.1. StreamingBuffer com LocalAgreement**
-- [ ] Criar `server/streaming/buffer.py`
-- [ ] Implementar `LocalAgreementPolicy` (n=2)
-- [ ] Implementar buffer trimming (segment + sentence)
-- [ ] Overlapping chunks para re-transcrição
+**0.1. API Batch Endpoint** ⭐ CRÍTICO
+- [ ] Criar `server/api/batch.py`
+- [ ] Endpoint `POST /v1/transcribe`
+- [ ] Suporte a multipart/form-data (upload de arquivo)
+- [ ] Parâmetros: model, language, task, response_format, etc
+- [ ] Validação de arquivo (formato, tamanho, duração)
+- [ ] **Tests**: `tests/integration/test_batch_api.py`
+- **Acceptance**: Upload de MP3/WAV, retorna JSON
+
+**0.2. Backend Dispatcher**
+- [ ] Criar `server/backends/dispatcher.py`
+- [ ] Lógica de seleção de backend por capabilities
+- [ ] Auto-select baseado em plataforma se `model="auto"`
+- [ ] Fallback se backend preferido não disponível
+- [ ] **Tests**: `tests/unit/test_dispatcher.py`
+- **Acceptance**: Seleciona backend correto por task/platform
+
+**0.3. Batch Processor Pipeline**
+- [ ] Criar `server/processors/batch_processor.py`
+- [ ] Pipeline: preparar áudio → transcrever → post-process → format
+- [ ] Suporte a diarization (post-processamento)
+- [ ] Output formats: JSON, verbose_json, text
+- [ ] Métricas de processing (tempo, RTF)
+- [ ] **Tests**: `tests/unit/test_batch_processor.py`
+- **Acceptance**: Pipeline completo end-to-end
+
+**0.4. Output Formatters**
+- [ ] Criar `server/formats/` (json, srt, vtt)
+- [ ] `json_formatter.py`: formato simples
+- [ ] `verbose_json_formatter.py`: com segments, words, metrics
+- [ ] `srt_formatter.py`: legendas SubRip (.srt)
+- [ ] `vtt_formatter.py`: WebVTT (.vtt)
+- [ ] **Tests**: `tests/unit/test_formatters.py`
+- **Acceptance**: Cada formato válido e testado
+
+**0.5. Documentação OpenAPI**
+- [ ] Schema OpenAPI 3.0 em `docs/openapi.yaml`
+- [ ] Documentar todos parâmetros e responses
+- [ ] Exemplos de uso (curl, Python, JavaScript)
+- [ ] Integrar com FastAPI/aiohttp (auto-docs)
+- **Acceptance**: Documentação navegável em `/docs`
+
+**Deliverables**:
+- ✅ Endpoint `/v1/transcribe` funcionando
+- ✅ Suporte: faster-whisper, MLX, WhisperX
+- ✅ Formats: JSON, verbose_json, text, SRT, VTT
+- ✅ Diarization via post-processamento
+- ✅ Documentação API completa
+- ✅ Testes com coverage > 80%
+
+**Riscos**:
+- Upload de arquivos grandes (timeout, memória)
+- Processamento longo pode travar servidor (precisa async queue)
+
+**Mitigação**:
+- Limitar tamanho de arquivo (100MB)
+- Limitar duração (1 hora)
+- Timeout configurável (10 min default)
+
+---
+
+### **FASE 0.5: Streaming Refinamento** ⭐ IMPORTANTE (mas não bloqueante)
+**Duração**: 1-2 semanas
+**Objetivo**: Melhorar streaming existente (já funciona, mas pode melhorar)
+
+**Nota**: Pode ser feito em paralelo com outros desenvolvimentos
+
+#### Tasks:
+
+**0.5.1. StreamingBuffer Aprimoramento**
+- [ ] Revisar `server/streaming/buffer.py`
+- [ ] Tune LocalAgreement (n=2 confirmado como ideal?)
+- [ ] Melhorar buffer trimming (segment vs sentence)
 - [ ] **Tests**: `tests/unit/test_streaming_buffer.py`
 - **Acceptance**: Latência < 2s, sem cortes de palavras
 
-**0.2. VAD-based Chunking**
-- [ ] Integrar Silero VAD (ou pyannote VAD)
+**0.5.2. VAD-based Chunking**
+- [ ] Integrar Silero VAD (opcional)
 - [ ] Chunk boundaries em pausas naturais
-- [ ] Configurável (VAD threshold)
+- [ ] Configurável via config
 - [ ] **Tests**: `tests/unit/test_vad_chunking.py`
-- **Acceptance**: Chunks cortam em pausas, não em palavras
-
-**0.3. WebSocket Handler Refactor**
-- [ ] Integrar StreamingBuffer no `websocket_handler.py`
-- [ ] Retornar transcrições parciais + finais
-- [ ] Timestamp de primeira palavra (latency metric)
-- [ ] **Tests**: `tests/integration/test_websocket_streaming.py`
-- **Acceptance**: Cliente recebe partial + final corretamente
-
-**0.4. Benchmarking Framework**
-- [ ] Script `scripts/benchmark.py`
-- [ ] Métricas: WER, latency, RTF, memory
-- [ ] Dataset de teste PT (Common Voice PT)
-- [ ] JSON report output
-- [ ] **Tests**: Validar métricas com áudio conhecido
-- **Acceptance**: Benchmark automatizado funcional
+- **Acceptance**: Chunks mais naturais
 
 **Deliverables**:
-- ✅ Streaming inteligente funcionando
-- ✅ Testes com coverage > 80%
-- ✅ Documentação em `docs/STREAMING.md`
-- ✅ Benchmark inicial com faster-whisper
+- ✅ Streaming mais suave e inteligente
+- ✅ Pausas naturais respeitadas
+- ✅ Testes cobrindo edge cases
 
-**Riscos**:
-- LocalAgreement pode ser complexo de tune (n=2 vs n=3?)
-- VAD pode ter falsos positivos
+---
+
+### **FASE 1: Validação de Modelos Existentes** ⭐ IMPORTANTE
+**Duração**: 1-2 semanas
+**Objetivo**: Garantir que modelos implementados funcionam corretamente
+
+#### Tasks:
+
+**1.1. WhisperX Validation** ⚠️ CRÍTICO
+- [ ] Deploy no RunPod com GPU
+- [ ] Testar diarization com áudio PT (2-3 speakers)
+- [ ] Medir DER (Diarization Error Rate)
+- [ ] Comparar word timestamps vs faster-whisper
+- [ ] Documentar em `docs/WHISPERX_VALIDATION.md`
+- **Acceptance**:
+  - DER < 15% em PT
+  - Word timestamps funcionando
+  - Decisão: manter ou descartar
+
+**1.2. CrisperWhisper Validation**
+- [ ] Testar com áudio verbatim PT
+- [ ] Validar detecção de fillers ("né", "tipo", "então")
+- [ ] Comparar WER com faster-whisper
+- [ ] Decisão: manter ou descartar
+
+**1.3. SeamlessM4T Completion**
+- [ ] Completar implementação em `seamless_backend.py`
+- [ ] Testar S2T (Speech-to-Text) PT→PT
+- [ ] Testar translation PT→EN
+- [ ] Documentar limitações
+
+**Deliverables**:
+- ✅ Todos backends validados e documentados
+- ✅ Decisão clara: keep vs deprecate
+- ✅ Benchmarks iniciais de WER/DER
 
 ---
 

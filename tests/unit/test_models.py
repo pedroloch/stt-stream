@@ -9,6 +9,7 @@ from datetime import datetime
 
 from server.models.capability import Capability, BackendInfo
 from server.models.result import Word, Segment, TranscriptionResult
+from server.serializers import WebSocketSerializer
 from server.utils.platform import Platform
 
 
@@ -553,7 +554,7 @@ class TestTranscriptionResultSerialization:
             timestamp=datetime(2025, 1, 17, 10, 30, 0),
         )
 
-        ws_dict = result.to_websocket_dict()
+        ws_dict = WebSocketSerializer.serialize_transcription(result)
 
         assert ws_dict["type"] == "transcription"
         assert ws_dict["text"] == "Test"
@@ -583,7 +584,7 @@ class TestTranscriptionResultSerialization:
             segments=[segment],
         )
 
-        ws_dict = result.to_websocket_dict()
+        ws_dict = WebSocketSerializer.serialize_transcription(result)
 
         assert "segments" in ws_dict
         assert len(ws_dict["segments"]) == 1
@@ -603,7 +604,7 @@ class TestTranscriptionResultSerialization:
             speaker="SPEAKER_02",
         )
 
-        ws_dict = result.to_websocket_dict()
+        ws_dict = WebSocketSerializer.serialize_transcription(result)
 
         assert ws_dict["speaker"] == "SPEAKER_02"
 
@@ -618,7 +619,7 @@ class TestTranscriptionResultSerialization:
             translation={"en": "Hello", "es": "Hola"},
         )
 
-        ws_dict = result.to_websocket_dict()
+        ws_dict = WebSocketSerializer.serialize_transcription(result)
 
         assert "translations" in ws_dict
         assert ws_dict["translations"]["en"] == "Hello"
@@ -640,7 +641,7 @@ class TestTranscriptionResultSerialization:
             translation={"pt": "Teste"},
         )
 
-        ws_dict = result.to_websocket_dict()
+        ws_dict = WebSocketSerializer.serialize_transcription(result)
 
         # Verificar todos os campos
         assert ws_dict["type"] == "transcription"
@@ -662,7 +663,7 @@ class TestTranscriptionResultSerialization:
             model_name="crisper-whisper",
         )
 
-        ws_dict = result.to_websocket_dict()
+        ws_dict = WebSocketSerializer.serialize_transcription(result)
 
         assert ws_dict["processing_time_ms"] == 150.0
         assert ws_dict["model"] == "crisper-whisper"
@@ -688,7 +689,7 @@ class TestTranscriptionResultSerialization:
             segments=[segment],
         )
 
-        ws_dict = result.to_websocket_dict()
+        ws_dict = WebSocketSerializer.serialize_transcription(result)
 
         assert ws_dict["segments"][0]["words"][0]["is_filler"] is True
 
@@ -713,7 +714,7 @@ class TestTranscriptionResultSerialization:
             segments=[segment],
         )
 
-        ws_dict = result.to_websocket_dict()
+        ws_dict = WebSocketSerializer.serialize_transcription(result)
 
         assert ws_dict["segments"][0]["words"][0]["speaker_id"] == "SPEAKER_02"
 
@@ -735,7 +736,7 @@ class TestTranscriptionResultSerialization:
             segments=[segment],
         )
 
-        ws_dict = result.to_websocket_dict()
+        ws_dict = WebSocketSerializer.serialize_transcription(result)
 
         assert "confidence_per_frame" in ws_dict["segments"][0]
         assert ws_dict["segments"][0]["confidence_per_frame"] == [0.95, 0.96, 0.97]
@@ -758,6 +759,6 @@ class TestTranscriptionResultSerialization:
             segments=[segment],
         )
 
-        ws_dict = result.to_websocket_dict()
+        ws_dict = WebSocketSerializer.serialize_transcription(result)
 
         assert ws_dict["segments"][0]["speaker_id"] == "SPEAKER_01"

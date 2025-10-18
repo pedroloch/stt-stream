@@ -1,0 +1,24 @@
+{
+  "text": "",
+  "task": "transcribe",
+  "language": "pt",
+  "duration": 36.941875,
+  "segments": [],
+  "backend_info": {
+    "model": "mlx-whisper",
+    "model_size": "base",
+    "device": "unknown",
+    "language": "pt",
+    "diarization_backend": null
+  },
+  "metrics": {
+    "processing_time_sec": 0.7211902141571045,
+    "audio_duration_sec": 36.941875,
+    "real_time_factor": 0.019522295881221632,
+    "model_load_time_sec": 0.0003311634063720703,
+    "transcription_time_sec": 0.5734679698944092,
+    "diarization_time_sec": null,
+    "formatting_time_sec": 0
+  },
+  "timestamp": "2025-10-18T16:09:35.523414"
+}

@@ -10,8 +10,12 @@ packages = [{include = "server"}]
 python = "^3.11"  # Python 3.11+ (3.12 compatível)
 aiohttp = "^3.11.0"  # Latest stable
 aiohttp-cors = "^0.7.0"
+aiohttp-pydantic = "^2.3.0"  # API batch com validação Pydantic
+pydantic = "^2.10.0"  # Validação de dados
+python-multipart = "^0.0.9"  # Upload de arquivos
 numpy = "^1.24.0,<2.0.0"  # numpy 1.x (compatível com NeMo toolkit)
 pyyaml = "^6.0.2"
+python-dotenv = "^1.0.0"  # Carregar variáveis de ambiente (.env)
 
 # Whisper streaming - usar faster-whisper como base
 faster-whisper = "^1.2.0"  # Latest stable

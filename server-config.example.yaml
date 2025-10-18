@@ -23,7 +23,7 @@ server:
 whisper:
   # Modelo: tiny, base, small, medium, large, large-v3, large-v3-turbo
   # Modelos maiores = mais precisos mas mais lentos
-  model: "mlx-community/distil-whisper-large-v3"
+  model: "small"
 
   # Idioma (auto para detecção automática)
   # Exemplos: pt, en, es, fr, de, etc
@@ -50,7 +50,7 @@ whisper:
   # ⚠️ DESABILITADO: VAD estava removendo 100% do áudio com threshold 0.5
   # TODO: Reavaliar VAD com threshold mais baixo (0.2-0.3) no futuro
   use_vad: true
-  vad_threshold: 0.25  # Não usado quando use_vad=false
+  vad_threshold: 0.5  # Não usado quando use_vad=false
 
   # Configurações de Streaming Buffer (LocalAgreement)
   # Chunk mínimo antes de processar (segundos)

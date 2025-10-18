@@ -14,6 +14,8 @@ server:
   url: "ws://localhost:9090/ws"
   health_url: "http://localhost:9090/health"
 
+  # runpod_id: "q8crccszdsxe7x"
+
   # ====== RUNPOD (servidor remoto com GPU) ======
   # Substitua SEU-POD-IP pelo IP do seu pod RunPod
   # url: "ws://SEU-POD-IP:9090/ws"
@@ -38,22 +40,30 @@ audio:
 
 # Configurações de Display (Terminal)
 display:
-  # Mostrar transcrições parciais (enquanto processa)
-  show_partial: true
+  # Modo de visualização de transcrições parciais
+  # - "inline"  : mostra hipóteses em cinza após o texto confirmado (padrão)
+  # - "minimal" : mostra apenas transcrições finais confirmadas
+  # - "full"    : (futuro) mostra histórico completo de parciais
+  #
+  # NOTA: Se partial_mode não estiver definido, usa o valor legado show_partial
+  partial_mode: "inline"
 
-  # Mostrar timestamps
+  # DEPRECATED: use partial_mode ao invés
+  # show_partial: true
+
+  # Mostrar timestamps nas transcrições
   show_timestamps: true
 
-  # Número máximo de mensagens no histórico
+  # Número máximo de mensagens no histórico de display
   max_history: 50
 
   # Largura para word wrap (quebra de linha automática)
   word_wrap_width: 80
 
-  # Cores do terminal
+  # Cores do terminal (respeitadas em todas as renderizações)
   colors:
-    partial: "cyan"      # Transcrições em progresso
-    final: "green"       # Transcrições finais
+    partial: "cyan"      # Transcrições em progresso / hipóteses
+    final: "green"       # Transcrições finais confirmadas
     error: "red"         # Mensagens de erro
     info: "yellow"       # Mensagens informativas
     debug: "gray"        # Mensagens de debug

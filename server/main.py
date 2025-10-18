@@ -19,6 +19,7 @@ from pathlib import Path
 
 from aiohttp import web
 
+from .api.batch import handle_batch_transcribe
 from .config import Config
 from .serializers import WebSocketSerializer
 from .utils.logger import setup_logger
@@ -71,14 +72,23 @@ class WhisperServer:
         # Criar app aiohttp
         self.app = web.Application()
 
+        # Armazenar config no app para acesso nos handlers
+        self.app["config"] = self.config
+
         # Adicionar CORS se habilitado
         if self.config.server.cors_enabled:
             self._setup_cors()
 
         # Rotas
+        # HTTP endpoints
         self.app.router.add_get('/health', self.health_check)
         self.app.router.add_get('/info', self.get_info)
         self.app.router.add_get('/stats', self.get_stats)
+
+        # Batch API
+        self.app.router.add_post('/v1/transcribe', handle_batch_transcribe)
+
+        # WebSocket
         self.app.router.add_get('/ws', self.handler.handle_websocket)
 
         self.logger.info("Servidor inicializado")

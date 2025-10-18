@@ -1,0 +1,1070 @@
+{
+  "text": "Olá, boa noite, eu sou o seu amigo Gabriel, como posso te ajudar hoje? Oi, Gabriel, boa noite. Aqui na Gini, eu estou com um probleminha, já faz 100 dias que eu estou sem internet, tentando um técnico pra ele lá em casa e não estou conseguindo. Foi o primeiro técnico no primeiro dia e falou que o problema não era no Boden, era em alguma caixa da rua, esse é o nome que ele falou. E aí era pra ele técnico todo dia, eu ligo, perguntando, e dizem que vai no mesmo dia, que vai no dia 20, aí hoje me falaram que o senhor me ligar hoje à tarde, que eles me ligaram hoje, hoje andava da manhã de manhã e até agora não tive nenhum contato. E hoje eu sempre, sempre, sempre...",
+  "task": "transcribe",
+  "language": "pt",
+  "duration": 36.941875,
+  "segments": [
+    {
+      "id": 0,
+      "start": 1.6000000000000014,
+      "end": 5.34,
+      "text": "Olá, boa noite, eu sou o seu amigo Gabriel, como posso te ajudar hoje?",
+      "words": [
+        {
+          "word": " Olá,",
+          "start": 1.6000000000000014,
+          "end": 2,
+          "probability": 0.301513671875,
+          "speaker_id": "SPEAKER_00"
+        },
+        {
+          "word": " boa",
+          "start": 2.1,
+          "end": 2.3,
+          "probability": 0.9453125,
+          "speaker_id": "SPEAKER_00"
+        },
+        {
+          "word": " noite,",
+          "start": 2.3,
+          "end": 2.64,
+          "probability": 0.986328125,
+          "speaker_id": "SPEAKER_00"
+        },
+        {
+          "word": " eu",
+          "start": 2.84,
+          "end": 2.84,
+          "probability": 0.7412109375,
+          "speaker_id": null
+        },
+        {
+          "word": " sou",
+          "start": 2.84,
+          "end": 2.92,
+          "probability": 0.99365234375,
+          "speaker_id": "SPEAKER_00"
+        },
+        {
+          "word": " o",
+          "start": 2.92,
+          "end": 3.04,
+          "probability": 0.748046875,
+          "speaker_id": "SPEAKER_00"
+        },
+        {
+          "word": " seu",
+          "start": 3.04,
+          "end": 3.16,
+          "probability": 0.81640625,
+          "speaker_id": "SPEAKER_00"
+        },
+        {
+          "word": " amigo",
+          "start": 3.16,
+          "end": 3.4,
+          "probability": 0.9921875,
+          "speaker_id": "SPEAKER_00"
+        },
+        {
+          "word": " Gabriel,",
+          "start": 3.4,
+          "end": 3.94,
+          "probability": 0.9677734375,
+          "speaker_id": "SPEAKER_00"
+        },
+        {
+          "word": " como",
+          "start": 4.22,
+          "end": 4.38,
+          "probability": 0.9638671875,
+          "speaker_id": "SPEAKER_00"
+        },
+        {
+          "word": " posso",
+          "start": 4.38,
+          "end": 4.62,
+          "probability": 0.966796875,
+          "speaker_id": "SPEAKER_00"
+        },
+        {
+          "word": " te",
+          "start": 4.62,
+          "end": 4.76,
+          "probability": 0.3955078125,
+          "speaker_id": "SPEAKER_00"
+        },
+        {
+          "word": " ajudar",
+          "start": 4.76,
+          "end": 4.94,
+          "probability": 0.9990234375,
+          "speaker_id": "SPEAKER_00"
+        },
+        {
+          "word": " hoje?",
+          "start": 4.94,
+          "end": 5.34,
+          "probability": 0.9765625,
+          "speaker_id": "SPEAKER_00"
+        }
+      ],
+      "speaker_id": "SPEAKER_00",
+      "confidence": null
+    },
+    {
+      "id": 1,
+      "start": 6.16,
+      "end": 7.28,
+      "text": "Oi, Gabriel, boa noite.",
+      "words": [
+        {
+          "word": " Oi,",
+          "start": 6.16,
+          "end": 6.28,
+          "probability": 0.966796875,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " Gabriel,",
+          "start": 6.36,
+          "end": 6.56,
+          "probability": 0.9208984375,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " boa",
+          "start": 6.62,
+          "end": 6.84,
+          "probability": 0.98681640625,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " noite.",
+          "start": 6.84,
+          "end": 7.28,
+          "probability": 0.9951171875,
+          "speaker_id": "SPEAKER_01"
+        }
+      ],
+      "speaker_id": "SPEAKER_01",
+      "confidence": null
+    },
+    {
+      "id": 2,
+      "start": 7.4,
+      "end": 11.44,
+      "text": "Aqui na Gini, eu estou com um probleminha, já faz 100 dias que eu estou sem internet,",
+      "words": [
+        {
+          "word": " Aqui",
+          "start": 7.4,
+          "end": 7.6,
+          "probability": 0.94921875,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " na",
+          "start": 7.6,
+          "end": 7.88,
+          "probability": 0.8193359375,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " Gini,",
+          "start": 7.88,
+          "end": 8.3,
+          "probability": 0.427001953125,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " eu",
+          "start": 8.46,
+          "end": 8.54,
+          "probability": 0.9375,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " estou",
+          "start": 8.54,
+          "end": 8.7,
+          "probability": 0.73779296875,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " com",
+          "start": 8.7,
+          "end": 8.96,
+          "probability": 0.9931640625,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " um",
+          "start": 8.96,
+          "end": 9.16,
+          "probability": 0.97412109375,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " probleminha,",
+          "start": 9.16,
+          "end": 9.48,
+          "probability": 0.94921875,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " já",
+          "start": 9.72,
+          "end": 9.72,
+          "probability": 0.873046875,
+          "speaker_id": null
+        },
+        {
+          "word": " faz",
+          "start": 9.72,
+          "end": 9.96,
+          "probability": 0.96240234375,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " 100",
+          "start": 9.96,
+          "end": 10.22,
+          "probability": 0.7744140625,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " dias",
+          "start": 10.22,
+          "end": 10.48,
+          "probability": 0.99560546875,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " que",
+          "start": 10.48,
+          "end": 10.62,
+          "probability": 0.97412109375,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " eu",
+          "start": 10.62,
+          "end": 10.66,
+          "probability": 0.63916015625,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " estou",
+          "start": 10.66,
+          "end": 10.78,
+          "probability": 0.71728515625,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " sem",
+          "start": 10.78,
+          "end": 10.92,
+          "probability": 0.994140625,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " internet,",
+          "start": 10.92,
+          "end": 11.44,
+          "probability": 0.9814453125,
+          "speaker_id": "SPEAKER_01"
+        }
+      ],
+      "speaker_id": "SPEAKER_01",
+      "confidence": null
+    },
+    {
+      "id": 3,
+      "start": 11.7,
+      "end": 15.32,
+      "text": "tentando um técnico pra ele lá em casa e não estou conseguindo.",
+      "words": [
+        {
+          "word": " tentando",
+          "start": 11.7,
+          "end": 12.06,
+          "probability": 0.935546875,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " um",
+          "start": 12.06,
+          "end": 12.22,
+          "probability": 0.81787109375,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " técnico",
+          "start": 12.22,
+          "end": 12.62,
+          "probability": 0.99169921875,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " pra",
+          "start": 12.62,
+          "end": 12.84,
+          "probability": 0.64990234375,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " ele",
+          "start": 12.84,
+          "end": 12.96,
+          "probability": 0.492919921875,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " lá",
+          "start": 12.96,
+          "end": 13.06,
+          "probability": 0.580078125,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " em",
+          "start": 13.06,
+          "end": 13.18,
+          "probability": 0.9951171875,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " casa",
+          "start": 13.18,
+          "end": 13.54,
+          "probability": 0.9990234375,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " e",
+          "start": 13.54,
+          "end": 14.44,
+          "probability": 0.47998046875,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " não",
+          "start": 14.44,
+          "end": 14.64,
+          "probability": 0.9150390625,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " estou",
+          "start": 14.64,
+          "end": 14.8,
+          "probability": 0.55224609375,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " conseguindo.",
+          "start": 14.8,
+          "end": 15.32,
+          "probability": 0.9970703125,
+          "speaker_id": "SPEAKER_01"
+        }
+      ],
+      "speaker_id": "SPEAKER_01",
+      "confidence": null
+    },
+    {
+      "id": 4,
+      "start": 15.940000000000001,
+      "end": 19.82,
+      "text": "Foi o primeiro técnico no primeiro dia e falou que o problema não era no Boden, era",
+      "words": [
+        {
+          "word": " Foi",
+          "start": 15.940000000000001,
+          "end": 16.34,
+          "probability": 0.86083984375,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " o",
+          "start": 16.34,
+          "end": 16.54,
+          "probability": 0.9853515625,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " primeiro",
+          "start": 16.54,
+          "end": 16.82,
+          "probability": 0.9755859375,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " técnico",
+          "start": 16.82,
+          "end": 17.26,
+          "probability": 0.99072265625,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " no",
+          "start": 17.26,
+          "end": 17.44,
+          "probability": 0.83349609375,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " primeiro",
+          "start": 17.44,
+          "end": 17.66,
+          "probability": 0.95751953125,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " dia",
+          "start": 17.66,
+          "end": 17.9,
+          "probability": 0.984375,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " e",
+          "start": 17.9,
+          "end": 18.02,
+          "probability": 0.580078125,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " falou",
+          "start": 18.02,
+          "end": 18.16,
+          "probability": 0.9658203125,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " que",
+          "start": 18.16,
+          "end": 18.28,
+          "probability": 0.9892578125,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " o",
+          "start": 18.28,
+          "end": 18.36,
+          "probability": 0.98828125,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " problema",
+          "start": 18.36,
+          "end": 18.62,
+          "probability": 0.99658203125,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " não",
+          "start": 18.62,
+          "end": 18.82,
+          "probability": 0.9814453125,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " era",
+          "start": 18.82,
+          "end": 18.98,
+          "probability": 0.98974609375,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " no",
+          "start": 18.98,
+          "end": 19.18,
+          "probability": 0.84033203125,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " Boden,",
+          "start": 19.18,
+          "end": 19.52,
+          "probability": 0.283935546875,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " era",
+          "start": 19.7,
+          "end": 19.82,
+          "probability": 0.890625,
+          "speaker_id": "SPEAKER_01"
+        }
+      ],
+      "speaker_id": "SPEAKER_01",
+      "confidence": null
+    },
+    {
+      "id": 5,
+      "start": 19.82,
+      "end": 22.28,
+      "text": "em alguma caixa da rua, esse é o nome que ele falou.",
+      "words": [
+        {
+          "word": " em",
+          "start": 19.82,
+          "end": 20.04,
+          "probability": 0.95751953125,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " alguma",
+          "start": 20.04,
+          "end": 20.28,
+          "probability": 0.966796875,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " caixa",
+          "start": 20.28,
+          "end": 20.68,
+          "probability": 0.990234375,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " da",
+          "start": 20.68,
+          "end": 20.92,
+          "probability": 0.8681640625,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " rua,",
+          "start": 20.92,
+          "end": 21.12,
+          "probability": 0.98974609375,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " esse",
+          "start": 21.3,
+          "end": 21.44,
+          "probability": 0.1434326171875,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " é",
+          "start": 21.44,
+          "end": 21.58,
+          "probability": 0.59326171875,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " o",
+          "start": 21.58,
+          "end": 21.6,
+          "probability": 0.9912109375,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " nome",
+          "start": 21.6,
+          "end": 21.72,
+          "probability": 0.99560546875,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " que",
+          "start": 21.72,
+          "end": 21.86,
+          "probability": 0.9326171875,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " ele",
+          "start": 21.86,
+          "end": 22,
+          "probability": 0.984375,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " falou.",
+          "start": 22,
+          "end": 22.28,
+          "probability": 0.99560546875,
+          "speaker_id": "SPEAKER_01"
+        }
+      ],
+      "speaker_id": "SPEAKER_01",
+      "confidence": null
+    },
+    {
+      "id": 6,
+      "start": 22.92,
+      "end": 27.48,
+      "text": "E aí era pra ele técnico todo dia, eu ligo, perguntando, e dizem que vai no mesmo dia,",
+      "words": [
+        {
+          "word": " E",
+          "start": 22.92,
+          "end": 23.12,
+          "probability": 0.890625,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " aí",
+          "start": 23.12,
+          "end": 23.28,
+          "probability": 0.89794921875,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " era",
+          "start": 23.28,
+          "end": 23.56,
+          "probability": 0.7099609375,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " pra",
+          "start": 23.56,
+          "end": 23.7,
+          "probability": 0.7763671875,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " ele",
+          "start": 23.7,
+          "end": 23.88,
+          "probability": 0.72265625,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " técnico",
+          "start": 23.88,
+          "end": 24.32,
+          "probability": 0.86181640625,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " todo",
+          "start": 24.32,
+          "end": 24.58,
+          "probability": 0.49169921875,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " dia,",
+          "start": 24.58,
+          "end": 24.92,
+          "probability": 0.98828125,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " eu",
+          "start": 24.94,
+          "end": 25.2,
+          "probability": 0.62255859375,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " ligo,",
+          "start": 25.2,
+          "end": 25.36,
+          "probability": 0.55126953125,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " perguntando,",
+          "start": 25.42,
+          "end": 25.98,
+          "probability": 0.90771484375,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " e",
+          "start": 26.04,
+          "end": 26.12,
+          "probability": 0.394287109375,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " dizem",
+          "start": 26.12,
+          "end": 26.34,
+          "probability": 0.9677734375,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " que",
+          "start": 26.34,
+          "end": 26.4,
+          "probability": 0.97607421875,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " vai",
+          "start": 26.4,
+          "end": 26.64,
+          "probability": 0.9189453125,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " no",
+          "start": 26.64,
+          "end": 26.94,
+          "probability": 0.85693359375,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " mesmo",
+          "start": 26.94,
+          "end": 27.22,
+          "probability": 0.798828125,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " dia,",
+          "start": 27.22,
+          "end": 27.48,
+          "probability": 0.99658203125,
+          "speaker_id": "SPEAKER_01"
+        }
+      ],
+      "speaker_id": "SPEAKER_01",
+      "confidence": null
+    },
+    {
+      "id": 7,
+      "start": 27.48,
+      "end": 31.8,
+      "text": "que vai no dia 20, aí hoje me falaram que o senhor me ligar hoje à tarde, que eles",
+      "words": [
+        {
+          "word": " que",
+          "start": 27.48,
+          "end": 27.62,
+          "probability": 0.16259765625,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " vai",
+          "start": 27.62,
+          "end": 27.84,
+          "probability": 0.91357421875,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " no",
+          "start": 27.84,
+          "end": 28.04,
+          "probability": 0.058197021484375,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " dia",
+          "start": 28.04,
+          "end": 28.14,
+          "probability": 0.401611328125,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " 20,",
+          "start": 28.14,
+          "end": 28.66,
+          "probability": 0.92236328125,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " aí",
+          "start": 29.22,
+          "end": 29.38,
+          "probability": 0.83837890625,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " hoje",
+          "start": 29.38,
+          "end": 29.6,
+          "probability": 0.94091796875,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " me",
+          "start": 29.6,
+          "end": 29.78,
+          "probability": 0.90087890625,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " falaram",
+          "start": 29.78,
+          "end": 30.1,
+          "probability": 0.9931640625,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " que",
+          "start": 30.1,
+          "end": 30.22,
+          "probability": 0.92041015625,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " o",
+          "start": 30.22,
+          "end": 30.32,
+          "probability": 0.64453125,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " senhor",
+          "start": 30.32,
+          "end": 30.46,
+          "probability": 0.42578125,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " me",
+          "start": 30.46,
+          "end": 30.62,
+          "probability": 0.64697265625,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " ligar",
+          "start": 30.62,
+          "end": 30.86,
+          "probability": 0.300537109375,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " hoje",
+          "start": 30.86,
+          "end": 31.04,
+          "probability": 0.95849609375,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " à",
+          "start": 31.04,
+          "end": 31.24,
+          "probability": 0.349853515625,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " tarde,",
+          "start": 31.24,
+          "end": 31.5,
+          "probability": 0.99755859375,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " que",
+          "start": 31.64,
+          "end": 31.66,
+          "probability": 0.51904296875,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " eles",
+          "start": 31.66,
+          "end": 31.8,
+          "probability": 0.7666015625,
+          "speaker_id": "SPEAKER_01"
+        }
+      ],
+      "speaker_id": "SPEAKER_01",
+      "confidence": null
+    },
+    {
+      "id": 8,
+      "start": 31.8,
+      "end": 35.4,
+      "text": "me ligaram hoje, hoje andava da manhã de manhã e até agora não tive nenhum contato.",
+      "words": [
+        {
+          "word": " me",
+          "start": 31.8,
+          "end": 31.94,
+          "probability": 0.1097412109375,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " ligaram",
+          "start": 31.94,
+          "end": 32.08,
+          "probability": 0.20166015625,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " hoje,",
+          "start": 32.08,
+          "end": 32.4,
+          "probability": 0.88134765625,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " hoje",
+          "start": 32.52,
+          "end": 32.62,
+          "probability": 0.72509765625,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " andava",
+          "start": 32.62,
+          "end": 32.92,
+          "probability": 0.4990234375,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " da",
+          "start": 32.92,
+          "end": 33.1,
+          "probability": 0.7470703125,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " manhã",
+          "start": 33.1,
+          "end": 33.38,
+          "probability": 0.974609375,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " de",
+          "start": 33.38,
+          "end": 33.46,
+          "probability": 0.356689453125,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " manhã",
+          "start": 33.46,
+          "end": 33.78,
+          "probability": 0.99072265625,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " e",
+          "start": 33.78,
+          "end": 33.96,
+          "probability": 0.59033203125,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " até",
+          "start": 33.96,
+          "end": 34.14,
+          "probability": 0.927734375,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " agora",
+          "start": 34.14,
+          "end": 34.38,
+          "probability": 0.99072265625,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " não",
+          "start": 34.38,
+          "end": 34.5,
+          "probability": 0.73779296875,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " tive",
+          "start": 34.5,
+          "end": 34.68,
+          "probability": 0.85205078125,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " nenhum",
+          "start": 34.68,
+          "end": 34.92,
+          "probability": 0.2120361328125,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " contato.",
+          "start": 34.92,
+          "end": 35.4,
+          "probability": 0.9921875,
+          "speaker_id": "SPEAKER_01"
+        }
+      ],
+      "speaker_id": "SPEAKER_01",
+      "confidence": null
+    },
+    {
+      "id": 9,
+      "start": 35.58,
+      "end": 36.92,
+      "text": "E hoje eu sempre, sempre, sempre...",
+      "words": [
+        {
+          "word": " E",
+          "start": 35.58,
+          "end": 35.66,
+          "probability": 0.11627197265625,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " hoje",
+          "start": 35.66,
+          "end": 35.78,
+          "probability": 0.365966796875,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " eu",
+          "start": 35.78,
+          "end": 35.88,
+          "probability": 0.59130859375,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " sempre,",
+          "start": 35.88,
+          "end": 36.04,
+          "probability": 0.352294921875,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " sempre,",
+          "start": 36.24,
+          "end": 36.42,
+          "probability": 0.3310546875,
+          "speaker_id": "SPEAKER_01"
+        },
+        {
+          "word": " sempre...",
+          "start": 36.68,
+          "end": 36.92,
+          "probability": 0.5458984375,
+          "speaker_id": "SPEAKER_01"
+        }
+      ],
+      "speaker_id": "SPEAKER_01",
+      "confidence": null
+    }
+  ],
+  "backend_info": {
+    "model": "mlx-whisper",
+    "model_size": "medium",
+    "device": "unknown",
+    "language": "pt",
+    "diarization_backend": "auto"
+  },
+  "metrics": {
+    "processing_time_sec": 7.96233606338501,
+    "audio_duration_sec": 36.941875,
+    "real_time_factor": 0.21553686875354888,
+    "model_load_time_sec": 0.0003597736358642578,
+    "transcription_time_sec": 4.016319990158081,
+    "diarization_time_sec": 3.7882609367370605,
+    "formatting_time_sec": 0
+  },
+  "timestamp": "2025-10-18T16:17:13.428648"
+}
