@@ -16,6 +16,7 @@ python-multipart = "^0.0.9"  # Upload de arquivos
 numpy = "^1.24.0,<2.0.0"  # numpy 1.x (compatível com NeMo toolkit)
 pyyaml = "^6.0.2"
 python-dotenv = "^1.0.0"  # Carregar variáveis de ambiente (.env)
+hf-transfer = "^0.1.8"  # Download rápido de modelos do HuggingFace Hub
 
 # Whisper streaming - usar faster-whisper como base
 faster-whisper = "^1.2.0"  # Latest stable
