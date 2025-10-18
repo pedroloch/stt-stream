@@ -48,6 +48,9 @@ class WhisperStreamClient {
   private lastPartialText = "";
   private lastFinalText = "";
 
+  // Texto confirmado acumulado (LocalAgreement incremental)
+  private confirmedText = "";
+
   // Histórico de mensagens
   private messageHistory: MessageHistoryItem[] = [];
   private maxHistory = 50;
@@ -407,24 +410,33 @@ class WhisperStreamClient {
       return;
     }
 
-    // Adicionar ao histórico se final
     if (is_final) {
+      // ✅ TRANSCRIÇÃO FINAL (confirmada pelo LocalAgreement)
+      // LocalAgreement envia apenas o NOVO texto confirmado (incremental)
+
       // Limpar linha parcial antes de adicionar final
       process.stdout.write("\r" + " ".repeat(100) + "\r");
 
+      // Acumular texto confirmado
+      this.confirmedText += (this.confirmedText ? " " : "") + text.trim();
+
       const historyItem: MessageHistoryItem = {
         timestamp: new Date(timestamp),
-        text,
+        text: text.trim(),  // Mostrar apenas o novo pedaço
         is_final: true,
         confidence,
       };
 
       this.messageHistory.push(historyItem);
 
-      // Renderizar só a nova mensagem
+      // Renderizar só a nova mensagem confirmada
       this.renderMessage(historyItem);
+
+      this.logDebug(`Confirmed text accumulated: "${this.confirmedText}"`);
+
     } else if (this.config.display.show_partial) {
-      // Transcrição parcial: atualizar linha
+      // ⏳ TRANSCRIÇÃO PARCIAL (preview, não confirmada ainda)
+      // Mostra o que está sendo processado no buffer
       this.updatePartialTranscription(text);
     }
   }
