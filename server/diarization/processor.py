@@ -93,25 +93,21 @@ class DiarizationProcessor:
     def _init_sortformer(self):
         """Inicializa backend Sortformer"""
         try:
-            from .sortformer_backend import SortformerBackend
+            from .sortformer_backend_batch import SortformerBatchBackend
 
-            # Sortformer só aceita: sample_rate, num_speakers, device, chunk_duration
+            # Sortformer só aceita: sample_rate, num_speakers, device, model_name
             sortformer_kwargs = {
                 'sample_rate': self.sample_rate,
                 'num_speakers': self.num_speakers,
                 'device': self.device,
             }
 
-            # Adicionar chunk_duration se presente em backend_kwargs
-            if 'chunk_duration' in self.backend_kwargs:
-                sortformer_kwargs['chunk_duration'] = self.backend_kwargs['chunk_duration']
-
             # model_name também é aceito
             if 'model_name' in self.backend_kwargs:
                 sortformer_kwargs['model_name'] = self.backend_kwargs['model_name']
 
-            self.backend = SortformerBackend(**sortformer_kwargs)
-            logger.info("Backend Sortformer inicializado")
+            self.backend = SortformerBatchBackend(**sortformer_kwargs)
+            logger.info("Backend Sortformer Batch inicializado")
         except ImportError as e:
             logger.error(
                 f"Erro ao carregar Sortformer: {e}. "
