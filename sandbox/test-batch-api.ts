@@ -34,6 +34,130 @@ interface TranscribeOptions {
   numSpeakers?: number;
 }
 
+/**
+ * Converte segundos para formato mm:ss
+ */
+function formatTime(seconds: number): string {
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+}
+
+/**
+ * Formata resultado da transcrição em Markdown legível
+ */
+function formatMarkdown(result: any, options: TranscribeOptions): string {
+  const lines: string[] = [];
+  const date = new Date().toLocaleString("pt-BR");
+
+  // Cabeçalho
+  lines.push(`# 🎙️ Transcrição - ${date}`);
+  lines.push("");
+
+  // Metadata
+  lines.push("## 📊 Metadata");
+  lines.push("");
+
+  if (result.duration_sec) {
+    lines.push(`- **Duração:** ${formatTime(result.duration_sec)}`);
+  }
+  lines.push(`- **Idioma:** ${result.language || options.language || "auto"}`);
+  lines.push(`- **Modelo:** ${options.model || "auto"}/${options.modelSize || "base"}`);
+
+  // Speakers detectados
+  const speakers = new Set<string>();
+  result.segments?.forEach((seg: any) => {
+    if (seg.speaker_id) speakers.add(seg.speaker_id);
+  });
+
+  if (speakers.size > 0) {
+    lines.push(`- **Speakers:** ${speakers.size} detectados (${Array.from(speakers).join(", ")})`);
+    if (result.backend_info?.diarization_backend) {
+      lines.push(`- **Diarization:** ${result.backend_info.diarization_backend}`);
+    }
+  }
+
+  // Performance
+  if (result.metrics) {
+    lines.push(`- **Processamento:** ${result.metrics.processing_time_sec.toFixed(2)}s`);
+    lines.push(`- **RTF:** ${result.metrics.real_time_factor.toFixed(3)}x`);
+  }
+
+  lines.push("");
+  lines.push("---");
+  lines.push("");
+
+  // Transcrição por speaker
+  lines.push("## 💬 Transcrição");
+  lines.push("");
+
+  let currentSpeaker: string | null = null;
+  let currentTime = 0;
+
+  for (const seg of result.segments || []) {
+    const speaker = seg.speaker_id || "UNKNOWN";
+    const time = formatTime(seg.start);
+
+    // Nova seção se mudou de speaker
+    if (speaker !== currentSpeaker) {
+      if (currentSpeaker !== null) {
+        lines.push(""); // Espaço entre speakers
+      }
+      lines.push(`### ${time} - **${speaker}**`);
+      lines.push("");
+      currentSpeaker = speaker;
+      currentTime = seg.start;
+    }
+
+    // Texto do segmento
+    lines.push(seg.text.trim());
+    lines.push("");
+  }
+
+  lines.push("---");
+  lines.push("");
+
+  // Detalhes (opcional - só se tiver words)
+  const hasWords = result.segments?.some((seg: any) => seg.words && seg.words.length > 0);
+
+  if (hasWords) {
+    lines.push("## 📝 Detalhes por Segmento");
+    lines.push("");
+    lines.push("_Timestamps palavra por palavra com confiança_");
+    lines.push("");
+
+    for (const seg of result.segments || []) {
+      const timeStart = formatTime(seg.start);
+      const timeEnd = formatTime(seg.end);
+      const speaker = seg.speaker_id || "UNKNOWN";
+
+      lines.push(`### ${timeStart} - ${timeEnd} | ${speaker}`);
+      lines.push("");
+      lines.push(`> ${seg.text.trim()}`);
+      lines.push("");
+
+      if (seg.words && seg.words.length > 0) {
+        lines.push("**Palavras:**");
+
+        for (const word of seg.words) {
+          const wordTime = formatTime(word.start);
+          const confidence = word.probability ? `${(word.probability * 100).toFixed(0)}%` : "N/A";
+          const speakerTag = word.speaker_id ? ` [${word.speaker_id}]` : "";
+          lines.push(`- \`${wordTime}\` ${word.word} (${confidence})${speakerTag}`);
+        }
+
+        lines.push("");
+      }
+    }
+  }
+
+  lines.push("---");
+  lines.push("");
+  lines.push(`_Gerado por Whisper Stream - ${date}_`);
+
+  return lines.join("\n");
+}
+
 async function testBatchAPI(options: TranscribeOptions) {
   console.log(chalk.blue.bold("\n🎙️  Whisper Stream - Teste API Batch\n"));
 
@@ -223,9 +347,30 @@ async function testBatchAPI(options: TranscribeOptions) {
     console.log();
 
     // Salvar resultado completo em arquivo JSON
-    const outputFile = `output-${Date.now()}.json`;
+    const timestamp = Date.now();
+    const outputFile = `output-${timestamp}.json`;
     await Bun.write(outputFile, JSON.stringify(result, null, 2));
-    console.log(chalk.gray(`💾 Resultado completo salvo em: ${outputFile}`));
+    console.log(chalk.gray(`💾 JSON salvo em: ${outputFile}`));
+
+    // Salvar Markdown (se tiver segmentos)
+    if (result.segments && result.segments.length > 0) {
+      const mdFile = `output-${timestamp}.md`;
+      const markdown = formatMarkdown(result, options);
+      await Bun.write(mdFile, markdown);
+      console.log(chalk.gray(`📄 Markdown salvo em: ${mdFile}`));
+
+      // Preview do Markdown (primeiras linhas)
+      const previewLines = markdown.split("\n").slice(0, 25);
+      console.log();
+      console.log(chalk.cyan("📖 Preview do Markdown:"));
+      console.log(chalk.gray("─".repeat(60)));
+      console.log(previewLines.join("\n"));
+      if (markdown.split("\n").length > 25) {
+        console.log(chalk.gray(`\n... (${markdown.split("\n").length - 25} linhas restantes no arquivo)`));
+      }
+      console.log(chalk.gray("─".repeat(60)));
+    }
+
     console.log();
 
   } catch (error) {
