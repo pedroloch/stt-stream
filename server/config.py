@@ -93,6 +93,26 @@ class DebugConfig:
 
 
 @dataclass
+class DiarizationConfig:
+    """Configurações de diarization (speaker identification)"""
+    # Backend: "none" (desabilitado), "sortformer" (NeMo, 4 speakers), "pyannote" (simples)
+    backend: str = "none"
+
+    # Número de speakers (None = auto-detect, apenas para pyannote)
+    num_speakers: int | None = None
+
+    # Min/max speakers para auto-detect (apenas pyannote)
+    min_speakers: int = 1
+    max_speakers: int = 8
+
+    # Device para diarization (auto, cpu, cuda, mps)
+    device: str = "auto"
+
+    # Auth token para Hugging Face (apenas pyannote, se modelo requer)
+    auth_token: str | None = None
+
+
+@dataclass
 class Config:
     """
     Configuração completa do servidor
@@ -108,6 +128,7 @@ class Config:
     logging: LoggingConfig = field(default_factory=LoggingConfig)
     hardware: HardwareConfig = field(default_factory=HardwareConfig)
     debug: DebugConfig = field(default_factory=DebugConfig)
+    diarization: DiarizationConfig = field(default_factory=DiarizationConfig)
 
     @classmethod
     def from_file(cls, config_path: str) -> "Config":
@@ -179,6 +200,7 @@ class Config:
             logging=LoggingConfig(**logging_data),
             hardware=HardwareConfig(**data.get("hardware", {})),
             debug=DebugConfig(**data.get("debug", {})),
+            diarization=DiarizationConfig(**data.get("diarization", {})),
         )
 
     @classmethod

@@ -23,6 +23,14 @@ from ..constants import DEFAULT_SAMPLE_RATE
 from ..models.result import TranscriptionResult, Word
 from .hypothesis_buffer import HypothesisBuffer
 
+# Diarization (opcional - apenas se disponível)
+try:
+    from ..diarization import DiarizationProcessor
+    DIARIZATION_AVAILABLE = True
+except ImportError:
+    DIARIZATION_AVAILABLE = False
+    DiarizationProcessor = None  # type: ignore
+
 logger = logging.getLogger(__name__)
 
 
@@ -55,11 +63,17 @@ class StreamingBuffer:
     - Trimming conservador (não imediato)
     """
 
-    def __init__(self, backend: WhisperBackend, config: BufferConfig | None = None):
+    def __init__(
+        self,
+        backend: WhisperBackend,
+        config: BufferConfig | None = None,
+        diarization_processor: object | None = None,  # DiarizationProcessor
+    ):
         """
         Args:
             backend: Backend de transcrição (faster-whisper, MLX, etc)
             config: Configuração do buffer
+            diarization_processor: Processor de diarization (opcional)
         """
         self.backend = backend
         self.config = config or BufferConfig()
@@ -90,12 +104,16 @@ class StreamingBuffer:
         # ⭐ NOVO: Stall detection - tracking de último commit
         self.time_of_last_commit: float = 0.0  # Timestamp absoluto do último commit
 
+        # ⭐ DIARIZATION: Processor opcional
+        self.diarization_processor = diarization_processor
+
         logger.info(
             f"StreamingBuffer inicializado: "
             f"min_chunk={self.config.min_chunk_size}s, "
             f"buffer_trimming={self.config.buffer_trimming}, "
             f"trim_threshold={self.config.buffer_trimming_sec}s, "
-            f"pause_detection={'ON' if self.config.pause_detection_enabled else 'OFF'}"
+            f"pause_detection={'ON' if self.config.pause_detection_enabled else 'OFF'}, "
+            f"diarization={'ON' if diarization_processor and diarization_processor.enabled else 'OFF'}"
         )
 
     async def add_chunk(self, audio_chunk: np.ndarray):
@@ -249,6 +267,28 @@ class StreamingBuffer:
         # ⭐ HypothesisBuffer: insert + flush (passa Word objects diretamente!)
         self.hypothesis.insert(result.words, self.buffer_time_offset)
         confirmed_words = self.hypothesis.flush()
+
+        # ⭐ DIARIZATION: Atribuir speaker IDs às palavras confirmadas
+        if confirmed_words and self.diarization_processor and self.diarization_processor.enabled:
+            try:
+                # Processar áudio para detectar speakers
+                await self.diarization_processor.diarize(
+                    self.audio_buffer,
+                    offset=self.buffer_time_offset
+                )
+
+                # Atribuir speakers às palavras confirmadas
+                confirmed_words = await self.diarization_processor.assign_speakers_to_words(
+                    confirmed_words
+                )
+
+                logger.debug(
+                    f"Diarization: {len(confirmed_words)} palavras processadas "
+                    f"(speakers detectados: {len(set(w.speaker_id for w in confirmed_words if w.speaker_id))})"
+                )
+            except Exception as e:
+                logger.error(f"Erro no diarization: {e}", exc_info=True)
+                # Continuar sem diarization em caso de erro
 
         # ⭐ STALL DETECTION: Detectar se buffer travou (sem commits por muito tempo)
         current_buffer_end_time = self.buffer_time_offset + (len(self.audio_buffer) / DEFAULT_SAMPLE_RATE)
@@ -516,6 +556,9 @@ class StreamingBuffer:
         # Reset detecção de pausa
         self.last_audio_time = 0.0
         self.pause_detected_flag = False
+        # Reset diarization
+        if self.diarization_processor and self.diarization_processor.enabled:
+            self.diarization_processor.reset()
         logger.info("StreamingBuffer resetado")
 
     def get_stats(self) -> dict:

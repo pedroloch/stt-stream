@@ -17,6 +17,14 @@ from .streaming.buffer import BufferConfig, StreamingBuffer
 from .streaming.vad import VADChunker
 from .whisper_processor import WhisperProcessor
 
+# Diarization (opcional)
+try:
+    from .diarization import DiarizationProcessor
+    DIARIZATION_AVAILABLE = True
+except ImportError:
+    DIARIZATION_AVAILABLE = False
+    DiarizationProcessor = None
+
 
 class WebSocketHandler:
     """
@@ -78,6 +86,36 @@ class WebSocketHandler:
         self.vad_stats_silence_chunks = 0
         self.vad_stats_speech_chunks = 0
 
+        # ⭐ DIARIZATION: Inicializar processor (se habilitado)
+        self.diarization_processor = None
+        if DIARIZATION_AVAILABLE and config.diarization.backend != "none":
+            try:
+                self.diarization_processor = DiarizationProcessor(
+                    backend=config.diarization.backend,
+                    sample_rate=DEFAULT_SAMPLE_RATE,
+                    num_speakers=config.diarization.num_speakers,
+                    device=config.diarization.device,
+                    min_speakers=config.diarization.min_speakers,
+                    max_speakers=config.diarization.max_speakers,
+                    auth_token=config.diarization.auth_token,
+                )
+                self.logger.info(
+                    f"✅ Diarization habilitado "
+                    f"(backend={config.diarization.backend}, "
+                    f"speakers={config.diarization.num_speakers or 'auto'})"
+                )
+            except Exception as e:
+                self.logger.warning(
+                    f"Erro ao inicializar diarization: {e}. "
+                    "Continuando sem diarization."
+                )
+                self.diarization_processor = None
+        else:
+            if not DIARIZATION_AVAILABLE:
+                self.logger.info("Diarization não disponível (módulo não instalado)")
+            else:
+                self.logger.info("Diarization desabilitado (backend=none)")
+
     async def handle_websocket(self, request: web.Request) -> web.WebSocketResponse:
         """
         Handle WebSocket connection
@@ -128,7 +166,8 @@ class WebSocketHandler:
 
         self.streaming_buffers[client_id] = StreamingBuffer(
             backend=self.processor.backend,
-            config=buffer_config
+            config=buffer_config,
+            diarization_processor=self.diarization_processor,
         )
 
         # Verificar limite de clientes
@@ -231,7 +270,8 @@ class WebSocketHandler:
                 )
                 buffer = StreamingBuffer(
                     backend=self.processor.backend,
-                    config=buffer_config
+                    config=buffer_config,
+                    diarization_processor=self.diarization_processor,
                 )
                 self.streaming_buffers[client_id] = buffer
 

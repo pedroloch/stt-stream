@@ -98,6 +98,39 @@ whisper:
   # Condition on previous text (usa contexto)
   condition_on_previous_text: true
 
+# ⭐ Diarization (Speaker Identification)
+# Identifica quem está falando (SPEAKER_00, SPEAKER_01, etc)
+# Útil para reuniões e conferências
+diarization:
+  # Backend: "none" (desabilitado), "sortformer" (NeMo, SOTA), "pyannote" (simples)
+  # - "none": Sem diarization (padrão)
+  # - "sortformer": Streaming diarization com NeMo (4 speakers simultâneos, SOTA 2025)
+  #     Requer: pip install nemo_toolkit[asr]
+  #     GPU recomendada (lento em CPU)
+  # - "pyannote": Pipeline Pyannote (simples, auto-detect speakers)
+  #     Requer: pip install pyannote.audio
+  #     GPU recomendada (lento em CPU)
+  backend: "none"
+
+  # Número de speakers (None = auto-detect)
+  # Sortformer: fixo em 4 speakers (ignora este parâmetro)
+  # Pyannote: usa auto-detect se None, senão usa valor fixo
+  num_speakers: null
+
+  # Auto-detect range (apenas pyannote)
+  # Usado quando num_speakers=null
+  min_speakers: 1
+  max_speakers: 8
+
+  # Device: "auto" (detecta), "cpu", "cuda", "mps"
+  # IMPORTANTE: Diarization é pesado, GPU altamente recomendada
+  device: "auto"
+
+  # Auth token Hugging Face (apenas pyannote, se modelo requer)
+  # Alguns modelos pyannote precisam de token HF
+  # Obtenha em: https://huggingface.co/settings/tokens
+  auth_token: null
+
 # Configurações de Performance
 performance:
   # Número de threads para processamento
