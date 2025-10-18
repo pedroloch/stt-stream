@@ -271,8 +271,8 @@ class WhisperXBackend(WhisperBackend):
 
             # Determinar speaker principal (mais comum)
             main_speaker = None
-            if speaker_segments:
-                speakers = [s.get("speaker") for s in speaker_segments if s.get("speaker")]
+            if segments_list:
+                speakers = [s.get("speaker") for s in segments_list if s.get("speaker")]
                 if speakers:
                     main_speaker = max(set(speakers), key=speakers.count)
 
