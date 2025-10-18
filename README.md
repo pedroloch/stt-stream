@@ -32,37 +32,25 @@ Sistema de transcrição em tempo real usando OpenAI Whisper com arquitetura cli
 O servidor é o componente principal. Instale e rode em uma máquina com GPU (opcional mas recomendado):
 
 ```bash
-# Opção 1: Com uv (recomendado)
-curl -LsSf https://astral.sh/uv/install.sh | sh
-cd whisper-stream
-uv pip install -e .
+# Instalar dependências com Poetry
+poetry install
 
-# Para Apple Silicon:
-uv pip install -e ".[mlx]"
+# Para Apple Silicon (MLX - mais rápido):
+poetry install -E mlx
 
-# Para NVIDIA GPU:
-uv pip install -e ".[cuda]"
+# Para NVIDIA GPU (CUDA):
+poetry install -E cuda
 
 # Copiar e configurar
 cp server-config.example.yaml server-config.yaml
 # Edite server-config.yaml se necessário
 
 # Iniciar servidor
-uv run python -m server.main --config server-config.yaml
-```
-
-```bash
-# Opção 2: Com Poetry
-poetry install
-
-# Para Apple Silicon:
-poetry install -E mlx
-
-# Para NVIDIA GPU:
-poetry install -E cuda
-
-# Iniciar
 poetry run python -m server.main --config server-config.yaml
+
+# Ou usar o Makefile:
+make install  # instalar
+make dev      # rodar servidor
 ```
 
 O servidor estará disponível em `ws://localhost:9090/ws`
@@ -203,10 +191,10 @@ Deploy o servidor Python em uma máquina com GPU:
    ```bash
    # Instalar CUDA drivers (NVIDIA)
    # Instalar dependências
-   uv pip install -e ".[cuda]"
+   poetry install -E cuda
 
    # Rodar servidor
-   uv run python -m server.main --host 0.0.0.0
+   poetry run python -m server.main --host 0.0.0.0
    ```
 
 ### Cliente (Local ou Proxy)
@@ -223,12 +211,33 @@ server:
 
 ## 📊 Status do Projeto
 
+**Versão**: 1.0 (pré-produção)
+**Data**: 2025-10-18
+
+### ✅ Implementado e Funcionando
 - ✅ Servidor Python completo com detecção de hardware
-- ✅ Backends: MLX (Apple Silicon), CUDA (NVIDIA), CPU
+- ✅ Backends: faster-whisper, MLX, WhisperX, CrisperWhisper, CPU/CUDA
+- ✅ Backend Registry com capabilities system
 - ✅ WebSocket server com múltiplos clientes
 - ✅ Cliente Bun de exemplo
-- ⏳ Testes automatizados
-- ⏳ Docker images
+- ✅ Refatorações recentes (SRP, performance, type safety)
+
+### ⏳ Em Desenvolvimento (Ver ROADMAP.md)
+- ⏳ **Streaming inteligente** (LocalAgreement) - FASE 0
+- ⏳ **Validação WhisperX** (diarization) - FASE 1
+- ⏳ **Testes automatizados** (coverage target: 80%)
+- ⏳ **Novos backends** (Voxtral, Parakeet, Granite, SeamlessM4T) - FASE 2
+- ⏳ **Features premium** (Redact/PII, Translation) - FASE 3
+
+### 📋 Documentação
+- 📖 **[DEVELOPER_NOTES.md](docs/DEVELOPER_NOTES.md)** - ⭐ **COMECE AQUI** - Notas críticas
+- 📖 **[ROADMAP.md](docs/ROADMAP.md)** - Roadmap completo (16 semanas, 5 fases)
+- 📖 **[IMPLEMENTATION_GUIDE.md](docs/IMPLEMENTATION_GUIDE.md)** - Código pronto (FASE 0)
+- 📖 **[MODELS_COMPARISON.md](docs/MODELS_COMPARISON.md)** - Comparação 11 modelos
+- 📖 [STATUS.md](docs/STATUS.md) - Status atual detalhado
+- 📖 [ARCHITECTURE.md](docs/ARCHITECTURE.md) - Arquitetura detalhada
+- 📖 [API.md](docs/API.md) - Protocolo WebSocket
+- 📖 [DEPLOYMENT.md](docs/DEPLOYMENT.md) - Deploy em produção
 
 ---
 
@@ -252,7 +261,7 @@ whisper-stream/
 
 ```bash
 # Com auto-reload (nodemon ou similar)
-uv run python -m server.main --config server-config.yaml
+poetry run python -m server.main --config server-config.yaml
 ```
 
 ### Testar Endpoints

@@ -51,7 +51,10 @@ class WhisperStreamClient {
   // Texto confirmado acumulado (LocalAgreement incremental)
   private confirmedText = "";
 
-  // Histórico de mensagens
+  // Texto parcial atual
+  private currentPartialText = "";
+
+  // Histórico de mensagens (apenas para quebras de linha)
   private messageHistory: MessageHistoryItem[] = [];
   private maxHistory = 50;
 
@@ -193,57 +196,37 @@ class WhisperStreamClient {
   }
 
   private renderHistory() {
-    // Mostrar últimas N mensagens
-    const recentMessages = this.messageHistory.slice(-this.maxHistory);
-
-    if (recentMessages.length === 0) {
+    // Não renderizar histórico antigo
+    // Apenas mostrar a linha atual inline
+    if (this.confirmedText || this.currentPartialText) {
+      this.renderCurrentLine();
+    } else {
       console.log(
         chalk.gray(
           "Aguardando transcrições... Fale no microfone para começar."
         )
       );
       console.log();
-    } else {
-      recentMessages.forEach((msg) => this.renderMessage(msg));
     }
   }
 
-  private renderMessage(msg: MessageHistoryItem) {
-    const time = msg.timestamp.toLocaleTimeString();
-    const confStr = msg.confidence
-      ? ` ${chalk.gray(`(${(msg.confidence * 100).toFixed(0)}%)`)}`
-      : "";
+  private renderCurrentLine() {
+    // Limpar linha e renderizar texto confirmado + parcial inline
+    process.stdout.write("\r" + " ".repeat(150) + "\r");
 
-    // Word wrap
-    const wrapped = this.wordWrap(
-      msg.text,
-      this.config.display.word_wrap_width || 80
-    );
+    let output = "";
 
-    const color = msg.is_final
-      ? this.getChalkColor(this.config.display.colors.final)
-      : this.getChalkColor(this.config.display.colors.partial);
+    // Texto confirmado (verde, normal)
+    if (this.confirmedText) {
+      output += chalk.green(this.confirmedText);
+    }
 
-    const icon = msg.is_final ? "" : "🎤 ";
+    // Texto parcial (cinza, muted)
+    if (this.currentPartialText) {
+      output += chalk.dim.gray(" " + this.currentPartialText);
+    }
 
-    wrapped.forEach((line, i) => {
-      if (i === 0) {
-        // Primeira linha: timestamp + texto
-        if (this.config.display.show_timestamps) {
-          console.log(
-            chalk.gray(`[${time}] `) + icon + color(line) + (i === 0 ? confStr : "")
-          );
-        } else {
-          console.log(icon + color(line) + (i === 0 ? confStr : ""));
-        }
-      } else {
-        // Linhas seguintes: indentadas
-        const indent = this.config.display.show_timestamps
-          ? " ".repeat(11 + icon.length)
-          : " ".repeat(icon.length);
-        console.log(indent + color(line));
-      }
-    });
+    process.stdout.write(output);
   }
 
   private wordWrap(text: string, width: number): string[] {
@@ -272,20 +255,23 @@ class WhisperStreamClient {
     return lines.length > 0 ? lines : [text];
   }
 
-  private updatePartialTranscription(text: string) {
-    // Limpar linha anterior
-    process.stdout.write("\r" + " ".repeat(100) + "\r");
+  private updateCurrentLine() {
+    // Renderizar linha atual (confirmado + parcial inline)
+    process.stdout.write("\r" + " ".repeat(150) + "\r");
 
-    // Mostrar nova transcrição parcial
-    const wrapped = this.wordWrap(
-      text,
-      this.config.display.word_wrap_width || 80
-    );
-    const color = this.getChalkColor(this.config.display.colors.partial);
+    let output = "";
 
-    if (wrapped.length > 0) {
-      process.stdout.write("🎤 " + color(wrapped[0]));
+    // Texto confirmado (verde)
+    if (this.confirmedText) {
+      output += chalk.green(this.confirmedText);
     }
+
+    // Texto parcial (cinza muted)
+    if (this.currentPartialText) {
+      output += chalk.dim.gray(" " + this.currentPartialText);
+    }
+
+    process.stdout.write(output);
   }
 
   // ============================================
@@ -414,30 +400,35 @@ class WhisperStreamClient {
       // ✅ TRANSCRIÇÃO FINAL (confirmada pelo LocalAgreement)
       // LocalAgreement envia apenas o NOVO texto confirmado (incremental)
 
-      // Limpar linha parcial antes de adicionar final
-      process.stdout.write("\r" + " ".repeat(100) + "\r");
+      const newConfirmed = text.trim();
 
       // Acumular texto confirmado
-      this.confirmedText += (this.confirmedText ? " " : "") + text.trim();
+      this.confirmedText += (this.confirmedText ? " " : "") + newConfirmed;
 
-      const historyItem: MessageHistoryItem = {
-        timestamp: new Date(timestamp),
-        text: text.trim(),  // Mostrar apenas o novo pedaço
-        is_final: true,
-        confidence,
-      };
+      // Limpar parcial (já foi confirmado)
+      this.currentPartialText = "";
 
-      this.messageHistory.push(historyItem);
+      // Verificar se termina com ponto final (quebrar linha)
+      if (newConfirmed.endsWith(".") || newConfirmed.endsWith("!") || newConfirmed.endsWith("?")) {
+        // Finalizar linha atual
+        process.stdout.write("\r" + " ".repeat(150) + "\r");
+        console.log(chalk.green(this.confirmedText));
 
-      // Renderizar só a nova mensagem confirmada
-      this.renderMessage(historyItem);
+        // Resetar para nova linha
+        this.confirmedText = "";
 
-      this.logDebug(`Confirmed text accumulated: "${this.confirmedText}"`);
+        this.logDebug("Line break on sentence end");
+      } else {
+        // Continuar na mesma linha
+        this.updateCurrentLine();
+      }
+
+      this.logDebug(`Confirmed text: "${this.confirmedText}"`);
 
     } else if (this.config.display.show_partial) {
       // ⏳ TRANSCRIÇÃO PARCIAL (preview, não confirmada ainda)
-      // Mostra o que está sendo processado no buffer
-      this.updatePartialTranscription(text);
+      this.currentPartialText = text.trim();
+      this.updateCurrentLine();
     }
   }
 
