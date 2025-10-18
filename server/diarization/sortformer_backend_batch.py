@@ -138,12 +138,23 @@ class SortformerBatchBackend(DiarizationBackend):
         self.device = device
 
         # 1. Carregar modelo
-        model = SortformerEncLabelModel.from_pretrained(self.model_name)
+        # Tentar carregar com strict=False para evitar problemas de versão
+        try:
+            model = SortformerEncLabelModel.from_pretrained(
+                self.model_name,
+                strict=False  # Permite incompatibilidades de config
+            )
+        except TypeError:
+            # Se strict não for aceito, tentar sem
+            logger.warning("Tentando carregar modelo sem strict=False")
+            model = SortformerEncLabelModel.from_pretrained(self.model_name)
+
         model.eval()
         model.to(device)
 
         # 2. Configurar parâmetros (baseado em WhisperLiveKit)
         # Estes valores otimizam para ~1s latência
+        # IMPORTANTE: Setar APÓS carregar o modelo, não durante __init__
         model.sortformer_modules.chunk_len = 10
         model.sortformer_modules.subsampling_factor = 10
         model.sortformer_modules.chunk_right_context = 0
