@@ -334,8 +334,25 @@ class StreamingBuffer:
                 # Se não confirmou palavras pelo LocalAgreement, forçar confirmação de TUDO
                 if not confirmed_words:
                     logger.info("Forçando confirmação de todo buffer devido à pausa")
-                    # Usar todas as palavras como confirmadas
-                    confirmed_words = result.words
+
+                    # ⭐ Filtrar apenas palavras NÃO confirmadas ainda (evitar duplicatas)
+                    # Criar set de timestamps das palavras já confirmadas
+                    already_confirmed_times = {(w.start, w.end) for w in self.commited_words}
+
+                    # Filtrar result.words para incluir apenas novas palavras
+                    confirmed_words = [
+                        w for w in result.words
+                        if (w.start, w.end) not in already_confirmed_times
+                    ]
+
+                    # Se não há palavras novas, não enviar nada
+                    if not confirmed_words:
+                        logger.debug("Todas as palavras já foram confirmadas, ignorando")
+                        # Limpar flag de pausa
+                        self.pause_detected_flag = False
+                        return None
+
+                    logger.debug(f"Forçando confirmação de {len(confirmed_words)} palavras novas (total no buffer: {len(result.words)})")
 
                 # Auto-punctuate se configurado E sem pontuação final
                 if self.config.auto_punctuate_on_pause:
@@ -387,7 +404,9 @@ class StreamingBuffer:
                 self.audio_buffer = np.array([], dtype=np.float32)
                 # Limpar HypothesisBuffer
                 self.hypothesis.reset()
-                logger.debug(f"Buffer limpo: offset={self.buffer_time_offset:.2f}s")
+                # ⭐ Limpar palavras confirmadas (nova frase = novo contexto)
+                self.commited_words.clear()
+                logger.debug(f"Buffer limpo completamente (nova frase): offset={self.buffer_time_offset:.2f}s, commited_words resetado")
             else:
                 # ⭐ Trim conservador normal: apenas se buffer > threshold
                 buffer_dur = len(self.audio_buffer) / DEFAULT_SAMPLE_RATE

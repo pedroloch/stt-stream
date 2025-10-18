@@ -44,6 +44,10 @@ class WebSocketSerializer:
             "timestamp": result.timestamp.isoformat(),
         }
 
+        # Adicionar is_sentence_end se presente
+        if hasattr(result, 'is_sentence_end') and result.is_sentence_end is not None:
+            message["is_sentence_end"] = result.is_sentence_end
+
         # Adicionar segments se presente (word timestamps)
         if result.segments:
             message["segments"] = [

@@ -57,45 +57,15 @@ class WhisperStreamClient {
   // Debug mode
   private debugMode: boolean;
 
-  constructor(configPath: string = "../config.example.yaml") {
+  constructor() {
     this.config = config as Config;
-    // Carregar config
-    // if (existsSync(configPath)) {
-    //   const configFile = readFileSync(configPath, "utf-8");
-
-    //   this.config = parse(configFile) as Config;
-    // } else {
-    //   // Config padrão se arquivo não existe
-    //   console.log(chalk.yellow(`⚠️  Config file not found: ${configPath}`));
-    //   console.log(chalk.yellow("Using default configuration..."));
-    //   this.config = {
-    //     server: {
-    //       url: "ws://localhost:9090/ws",
-    //       health_url: "http://localhost:9090/health",
-    //     },
-    //     audio: {
-    //       sample_rate: 16000,
-    //       channels: 1,
-    //     },
-    //     display: {
-    //       show_partial: true,
-    //       show_timestamps: true,
-    //       colors: {
-    //         partial: "cyan",
-    //         final: "green",
-    //         error: "red",
-    //         info: "yellow",
-    //         debug: "gray",
-    //         header: "cyan",
-    //       },
-    //       max_history: 50,
-    //       word_wrap_width: 80,
-    //     },
-    //   };
-    // }
 
     // Processar runpod_id se definido
     if (this.config.server.runpod_id && this.config.server.runpod_id.trim()) {
+      console.log(
+        "Usando runpod_id para configurar URLs do servidor...",
+        this.config.server.runpod_id
+      );
       const podId = this.config.server.runpod_id.trim();
       this.config.server.url = `wss://${podId}-9090.proxy.runpod.net/ws`;
       this.config.server.health_url = `https://${podId}-9090.proxy.runpod.net/health`;
@@ -414,9 +384,18 @@ class WhisperStreamClient {
       return;
     }
 
+    // Log de recebimento (debug)
+    if (this.debugMode) {
+      const typeStr = is_final ? "FINAL" : "PARTIAL";
+      const sentenceEndStr = is_sentence_end ? " [FIM_DE_FRASE]" : "";
+      this.logDebug(
+        `📨 ${typeStr}${sentenceEndStr}: "${text.substring(0, 60)}${text.length > 60 ? "..." : ""}"`
+      );
+    }
+
     // Filtro de duplicatas
     if (!this.shouldShowMessage(text, is_final)) {
-      this.logDebug("Ignored duplicate transcription");
+      // Log já é feito dentro de shouldShowMessage quando bloqueia
       return;
     }
 
@@ -424,26 +403,48 @@ class WhisperStreamClient {
       // ✅ TRANSCRIÇÃO FINAL (confirmada pelo LocalAgreement)
       // LocalAgreement envia apenas o NOVO texto confirmado (incremental)
 
-      this.logDebug(`Received FINAL: "${text.trim()}" (sentence_end=${is_sentence_end})`);
-      this.logDebug(`Current confirmed: "${this.confirmedText}"`);
+      this.logDebug(
+        `✅ Processing FINAL: "${text.trim()}" (sentence_end=${is_sentence_end})`
+      );
+      this.logDebug(`   Current confirmed buffer: "${this.confirmedText}"`);
 
       // Limpar linha parcial antes de adicionar final
       const clearWidth = Math.min(process.stdout.columns || 120, 150);
       process.stdout.write("\r" + " ".repeat(clearWidth) + "\r");
 
-      // ⭐ Acumular texto confirmado com espaço duplo se for fim de frase
-      if (this.confirmedText) {
-        // Espaço duplo se fim de frase anterior, simples senão
-        const separator = is_sentence_end ? "  " : " ";
-        this.confirmedText += separator + text.trim();
+      // ⭐ Se for fim de frase, finalizar linha atual e começar nova
+      if (is_sentence_end) {
+        this.logDebug(`Fim de frase detectado, finalizando linha atual`);
+
+        // Se já temos texto confirmado, finalizar essa linha
+        if (this.confirmedText) {
+          this.confirmedText += " " + text.trim();
+          // Renderizar e pular linha
+          this.renderConfirmedText();
+          console.log(); // Nova linha
+        } else {
+          // Primeira confirmação já é fim de frase
+          this.confirmedText = text.trim();
+          this.renderConfirmedText();
+          console.log(); // Nova linha
+        }
+
+        // Resetar para próxima frase
+        this.confirmedText = "";
+        this.logDebug(`confirmedText resetado para próxima frase`);
       } else {
-        this.confirmedText = text.trim();
+        // ⭐ Acumular texto confirmado (mesma frase)
+        if (this.confirmedText) {
+          this.confirmedText += " " + text.trim();
+        } else {
+          this.confirmedText = text.trim();
+        }
+
+        this.logDebug(`New confirmed total: "${this.confirmedText}"`);
+
+        // Mostrar texto acumulado completo numa linha
+        this.renderConfirmedText();
       }
-
-      this.logDebug(`New confirmed total: "${this.confirmedText}"`);
-
-      // Mostrar texto acumulado completo numa linha
-      this.renderConfirmedText();
     } else {
       // ⏳ TRANSCRIÇÃO PARCIAL (preview, não confirmada ainda)
       // O servidor envia TUDO (confirmado + novo), precisamos filtrar
@@ -453,8 +454,11 @@ class WhisperStreamClient {
         this.config.display.partial_mode ||
         (this.config.display.show_partial ? "inline" : "minimal");
 
+      this.logDebug(`Partial mode: ${partialMode}, show_partial: ${this.config.display.show_partial}`);
+
       if (partialMode === "minimal") {
         // Não mostrar parcial, apenas final
+        this.logDebug("Partial mode is 'minimal', skipping partial transcription display");
         return;
       }
 
@@ -464,13 +468,19 @@ class WhisperStreamClient {
         // Se o texto parcial começa com texto confirmado, remover
         if (text.startsWith(this.confirmedText)) {
           newText = text.substring(this.confirmedText.length).trim();
+          this.logDebug(`Removed confirmed text. Original: "${text}", New text: "${newText}"`);
         }
       }
 
       // Mostrar apenas o novo texto hipotético
       if (newText && partialMode === "inline") {
         // Modo inline: mostrar texto confirmado + (hipótese)
+        this.logDebug(`Rendering partial with hypothesis: "${newText}"`);
         this.renderConfirmedTextWithHypothesis(newText);
+      } else if (!newText) {
+        this.logDebug("No new text after removing confirmed text, skipping render");
+      } else {
+        this.logDebug(`Partial mode '${partialMode}' not supported for inline rendering`);
       }
     }
   }
@@ -483,8 +493,8 @@ class WhisperStreamClient {
     const clearWidth = Math.min(process.stdout.columns || 120, 150);
     process.stdout.write("\r" + " ".repeat(clearWidth) + "\r");
 
-    // Sempre usar branco para texto confirmado
-    const color = chalk.white;
+    // Usar cor configurada para texto final
+    const color = this.getChalkColor(this.config.display.colors.final);
 
     // Quebrar linha se muito longo
     const maxWidth = (process.stdout.columns || 80) - 2;
@@ -504,20 +514,30 @@ class WhisperStreamClient {
   private renderConfirmedTextWithHypothesis(hypothesis: string) {
     /**
      * Renderiza: Texto confirmado hipótese...
-     * Texto confirmado em branco, hipótese em cinza (dim), mesma linha
+     * Texto confirmado usa cor configurada para final, hipótese usa cor configurada para partial
      */
-    const confirmedColor = chalk.white;
-    const hypothesisColor = chalk.gray;
+    const confirmedColor = this.getChalkColor(this.config.display.colors.final);
+    const hypothesisColor = this.getChalkColor(this.config.display.colors.partial);
 
-    // Limitar tamanho da hipótese
-    const maxHypothesisLength = 40;
+    // Limitar tamanho da hipótese (aumentado para ver mais contexto)
+    const maxHypothesisLength = 80;
     let displayHypothesis = hypothesis;
     if (hypothesis.length > maxHypothesisLength) {
       displayHypothesis =
         hypothesis.substring(0, maxHypothesisLength - 3) + "...";
     }
 
-    // Calcular tamanho total (sem parênteses)
+    // ⭐ CASO ESPECIAL: Sem texto confirmado (início de nova frase)
+    if (!this.confirmedText) {
+      this.logDebug(`Renderizando hipótese sem texto confirmado: "${displayHypothesis}"`);
+      const clearWidth = Math.min(process.stdout.columns || 120, 150);
+      process.stdout.write("\r" + " ".repeat(clearWidth) + "\r");
+      // Renderizar apenas hipótese (sem espaço inicial)
+      process.stdout.write(chalk.dim(hypothesisColor(displayHypothesis)));
+      return;
+    }
+
+    // Calcular tamanho total
     const totalText = this.confirmedText + " " + displayHypothesis;
     const maxWidth = (process.stdout.columns || 80) - 2;
 
@@ -527,10 +547,10 @@ class WhisperStreamClient {
       console.clear();
       this.renderHeader();
       lines.forEach((line) => console.log(confirmedColor(line)));
-      // Hipótese em linha separada (sem parênteses)
-      // console.log(chalk.yellow(displayHypothesis));
+      // ⭐ Mostrar hipótese em linha separada
+      console.log(chalk.dim(hypothesisColor(displayHypothesis)));
     } else {
-      // Inline update (mesma linha, sem parênteses)
+      // Inline update (mesma linha)
       const clearWidth = Math.min(process.stdout.columns || 120, 150);
       process.stdout.write("\r" + " ".repeat(clearWidth) + "\r");
 
@@ -551,12 +571,33 @@ class WhisperStreamClient {
     }
   }
 
+  private normalizeText(text: string): string {
+    /**
+     * Normaliza texto para comparação:
+     * - Remove pontuação
+     * - Lowercase
+     * - Remove espaços extras
+     */
+    return text
+      .replace(/[.,!?;:…]/g, "")
+      .toLowerCase()
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
   private shouldShowMessage(text: string, is_final: boolean): boolean {
     if (is_final) {
       // Mensagem final: verificar se é diferente da última final
-      if (text.trim() === this.lastFinalText.trim()) {
+      const normalized = this.normalizeText(text);
+      const lastNormalized = this.normalizeText(this.lastFinalText);
+
+      if (normalized === lastNormalized && normalized.length > 0) {
+        this.logDebug(
+          `Bloqueada duplicata final: "${text.trim()}" (normalizado: "${normalized}")`
+        );
         return false;
       }
+
       this.lastFinalText = text;
       // Resetar parcial quando temos uma final nova
       this.lastPartialText = "";
