@@ -10,21 +10,27 @@
 
 # Servidor Python (pode estar em outra máquina)
 server:
+  # ====== RUNPOD (recomendado para GPU remota) ======
+  # Se definir runpod_id, as URLs abaixo são IGNORADAS
+  # Exemplos:
+  # runpod_id: "41f82dhadte331"
+  # runpod_id: "abc123xyz789"
+  # Gera automaticamente:
+  #   url: wss://41f82dhadte331-9090.proxy.runpod.net/ws
+  #   health_url: https://41f82dhadte331-9090.proxy.runpod.net/health
+  # runpod_id: ""
+
   # ====== LOCALHOST (desenvolvimento local) ======
+  # Usado se runpod_id não estiver definido ou for vazio
   url: "ws://localhost:9090/ws"
   health_url: "http://localhost:9090/health"
 
-  # ====== RUNPOD (servidor remoto com GPU) ======
-  # Substitua SEU-POD-IP pelo IP do seu pod RunPod
-  # url: "ws://SEU-POD-IP:9090/ws"
-  # health_url: "http://SEU-POD-IP:9090/health"
-
-  # Exemplo com IP real:
+  # ====== ALTERNATIVAS (IP fixo ou domínio customizado) ======
+  # Se não usar runpod_id, pode usar IP fixo:
   # url: "ws://167.99.123.456:9090/ws"
   # health_url: "http://167.99.123.456:9090/health"
-
-  # ====== DOMÍNIO CUSTOMIZADO (produção) ======
-  # Se configurou domínio com SSL:
+  #
+  # Ou domínio customizado com SSL:
   # url: "wss://whisper.seu-dominio.com/ws"
   # health_url: "https://whisper.seu-dominio.com/health"
 

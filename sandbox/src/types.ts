@@ -80,8 +80,9 @@ export type AnyWebSocketMessage =
  * Configuração do servidor
  */
 export interface ServerConfig {
-  url: string;
-  health_url: string;
+  url?: string;
+  health_url?: string;
+  runpod_id?: string; // Se definido, gera automaticamente URLs do RunPod
 }
 
 /**

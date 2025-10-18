@@ -94,6 +94,18 @@ class WhisperStreamClient {
     //   };
     // }
 
+    // Processar runpod_id se definido
+    if (this.config.server.runpod_id && this.config.server.runpod_id.trim()) {
+      const podId = this.config.server.runpod_id.trim();
+      this.config.server.url = `wss://${podId}-9090.proxy.runpod.net/ws`;
+      this.config.server.health_url = `https://${podId}-9090.proxy.runpod.net/health`;
+    } else if (!this.config.server.url || !this.config.server.health_url) {
+      // Garantir que temos URLs válidas
+      throw new Error(
+        "Configuração inválida: defina runpod_id OU url/health_url no config.yaml"
+      );
+    }
+
     // Debug mode: ler de env ou config
     this.debugMode =
       process.env.DEBUG === "1" ||
@@ -284,7 +296,7 @@ class WhisperStreamClient {
       this.connectionStatus = ConnectionStatus.Connecting;
       this.renderHeader();
 
-      const response = await fetch(this.config.server.health_url);
+      const response = await fetch(this.config.server.health_url!);
 
       if (response.ok) {
         const data = await response.json();
@@ -312,7 +324,7 @@ class WhisperStreamClient {
       this.connectionStatus = ConnectionStatus.Connecting;
       this.renderHeader();
 
-      this.ws = new WebSocket(this.config.server.url);
+      this.ws = new WebSocket(this.config.server.url!);
 
       this.ws.on("open", () => {
         this.connectionStatus = ConnectionStatus.Connected;
