@@ -189,20 +189,23 @@ class WhisperXBackend(WhisperBackend):
                 )
 
             # 3. Diarization (speaker identification)
-            speaker_segments = None
             if self.diarize_model:
                 self.logger.debug("Executando diarization")
-                diarize_result = self.diarize_model(
-                    audio,
-                    min_speakers=self.min_speakers,
-                    max_speakers=self.max_speakers,
-                )
-                speaker_segments = self.whisperx.assign_word_speakers(
-                    diarize_result, result["segments"]
-                )
+                try:
+                    diarize_result = self.diarize_model(
+                        audio,
+                        min_speakers=self.min_speakers,
+                        max_speakers=self.max_speakers,
+                    )
+                    # assign_word_speakers espera dict com "segments", não a lista direta
+                    result = self.whisperx.assign_word_speakers(diarize_result, result)
+                    self.logger.debug("✅ Diarization concluída e speakers atribuídos")
+                except Exception as e:
+                    self.logger.warning(f"❌ Erro ao atribuir speakers: {e}")
+                    self.logger.warning("⚠️  Continuando sem speaker identification")
 
             # Converter para TranscriptionResult
-            segments_list = speaker_segments if speaker_segments else result["segments"]
+            segments_list = result["segments"]
 
             # Concatenar texto
             full_text = " ".join(seg["text"].strip() for seg in segments_list).strip()
