@@ -30,6 +30,8 @@ interface TranscribeOptions {
   responseFormat?: "json" | "verbose_json" | "text" | "srt" | "vtt";
   returnMetrics?: boolean;
   enableDiarization?: boolean;
+  diarizationBackend?: string;
+  numSpeakers?: number;
 }
 
 async function testBatchAPI(options: TranscribeOptions) {
@@ -83,12 +85,23 @@ async function testBatchAPI(options: TranscribeOptions) {
   if (options.responseFormat) formData.append("response_format", options.responseFormat);
   if (options.returnMetrics !== undefined) formData.append("return_metrics", String(options.returnMetrics));
   if (options.enableDiarization !== undefined) formData.append("enable_diarization", String(options.enableDiarization));
+  if (options.diarizationBackend) formData.append("diarization_backend", options.diarizationBackend);
+  if (options.numSpeakers !== undefined) formData.append("num_speakers", String(options.numSpeakers));
 
   console.log(chalk.gray("Parâmetros:"));
   console.log(chalk.gray(`  model: ${options.model || "faster-whisper"}`));
   console.log(chalk.gray(`  language: ${options.language || "pt"}`));
   console.log(chalk.gray(`  task: ${options.task || "transcribe"}`));
   console.log(chalk.gray(`  response_format: ${options.responseFormat || "verbose_json"}`));
+  if (options.enableDiarization) {
+    console.log(chalk.gray(`  diarization: enabled`));
+    if (options.diarizationBackend) {
+      console.log(chalk.gray(`  diarization_backend: ${options.diarizationBackend}`));
+    }
+    if (options.numSpeakers) {
+      console.log(chalk.gray(`  num_speakers: ${options.numSpeakers}`));
+    }
+  }
   console.log();
 
   // 5. Enviar request
@@ -268,27 +281,38 @@ for (let i = 0; i < args.length; i++) {
     case "--diarization":
       options.enableDiarization = true;
       break;
+    case "--diarization-backend":
+      options.diarizationBackend = value;
+      i++;
+      break;
+    case "--num-speakers":
+      options.numSpeakers = parseInt(value);
+      i++;
+      break;
     case "--help":
     case "-h":
       console.log(`
 Uso: bun test-batch-api.ts [opções]
 
 Opções:
-  -f, --file <path>        Caminho do arquivo de áudio (default: audios/audio-test.mp3)
-  -m, --model <backend>    Backend (faster-whisper, mlx, whisperx, auto)
-  --model-size <size>      Tamanho do modelo (tiny, base, small, medium, large, distil-large-v3)
-  -l, --language <lang>    Idioma (pt, en, es, fr, etc)
-  -t, --task <task>        Tarefa (transcribe, translate)
-  --format <format>        Formato (json, verbose_json, text, srt, vtt)
-  --no-metrics             Não retornar métricas
-  --diarization            Habilitar diarization
-  -h, --help               Mostrar ajuda
+  -f, --file <path>              Caminho do arquivo de áudio (default: audios/audio-test.mp3)
+  -m, --model <backend>          Backend (faster-whisper, mlx, whisperx, auto)
+  --model-size <size>            Tamanho do modelo (tiny, base, small, medium, large, distil-large-v3)
+  -l, --language <lang>          Idioma (pt, en, es, fr, etc)
+  -t, --task <task>              Tarefa (transcribe, translate)
+  --format <format>              Formato (json, verbose_json, text, srt, vtt)
+  --no-metrics                   Não retornar métricas
+  --diarization                  Habilitar diarization
+  --diarization-backend <name>   Backend de diarization (pyannote, sortformer, auto)
+  --num-speakers <n>             Número de speakers (para pyannote)
+  -h, --help                     Mostrar ajuda
 
 Exemplos:
   bun test-batch-api.ts
   bun test-batch-api.ts --file audios/outro.mp3
   bun test-batch-api.ts --model faster-whisper --language en
   bun test-batch-api.ts --diarization
+  bun test-batch-api.ts --diarization --diarization-backend pyannote --num-speakers 2
       `);
       process.exit(0);
   }
