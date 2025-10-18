@@ -189,6 +189,19 @@ class FasterWhisperBackend(WhisperBackend):
             if np.abs(audio).max() > 1.0:
                 audio = audio / np.abs(audio).max()
 
+            # Preparar initial_prompt (importante para detecção de idioma!)
+            # Se temos context, usar. Senão, usar prompt padrão do idioma.
+            initial_prompt = context or self.current_context
+            if not initial_prompt and self.language and self.language != "auto":
+                # Prompt padrão por idioma (ajuda MUITO na detecção)
+                language_prompts = {
+                    "pt": "Olá, como vai? Este é um texto em português do Brasil.",
+                    "en": "Hello, how are you? This is a text in English.",
+                    "es": "Hola, ¿cómo estás? Este es un texto en español.",
+                    "fr": "Bonjour, comment allez-vous? Ceci est un texte en français.",
+                }
+                initial_prompt = language_prompts.get(self.language)
+
             # Transcricao com WORD TIMESTAMPS! ⭐
             segments, info = self.model_instance.transcribe(
                 audio,
@@ -206,8 +219,8 @@ class FasterWhisperBackend(WhisperBackend):
                 vad_parameters={
                     "threshold": self.kwargs.get("vad_threshold", 0.5),
                 },
-                # Context
-                initial_prompt=context or self.current_context or None,
+                # Context (com fallback para prompt do idioma)
+                initial_prompt=initial_prompt,
                 condition_on_previous_text=self.kwargs.get(
                     "condition_on_previous_text", True
                 ),
