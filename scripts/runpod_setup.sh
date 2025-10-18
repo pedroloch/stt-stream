@@ -135,19 +135,9 @@ else
     poetry install --extras "cuda vad"
 fi
 
-# 4.5. Instalar cuDNN para ctranslate2 (faster-whisper) e PyTorch
-echo ""
-echo "📦 Instalando cuDNN 9.x (necessário para PyTorch 2.6 + faster-whisper)..."
-
-# IMPORTANTE: Desinstalar qualquer cuDNN anterior (pode estar no sistema)
-poetry run pip uninstall nvidia-cudnn-cu12 nvidia-cudnn-cu11 -y 2>/dev/null || true
-
-# Instalar versão correta (9.x para PyTorch 2.6)
-poetry run pip install "nvidia-cudnn-cu12>=9.1.0,<10.0.0" --force-reinstall
-
-echo "✅ cuDNN 9.x instalado"
-
-# 4.6. Configurar LD_LIBRARY_PATH permanentemente
+# 4.5. Configurar LD_LIBRARY_PATH para cuDNN
+# NOTA: Poetry já instala versão correta do cuDNN compatível com PyTorch
+# Não forçamos versão específica para evitar conflitos
 echo ""
 echo "⚙️  Configurando LD_LIBRARY_PATH para cuDNN..."
 CUDNN_PATH=$(poetry run python -c "import nvidia.cudnn; import os; print(os.path.dirname(nvidia.cudnn.__file__))" 2>/dev/null)
