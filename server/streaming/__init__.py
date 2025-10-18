@@ -9,9 +9,11 @@ This module implements real-time streaming transcription with:
 """
 
 from .buffer import BufferConfig, LocalAgreementPolicy, StreamingBuffer
+from .vad import VADChunker
 
 __all__ = [
     "BufferConfig",
     "LocalAgreementPolicy",
     "StreamingBuffer",
+    "VADChunker",
 ]
