@@ -96,10 +96,14 @@ class SortformerBatchBackend(DiarizationBackend):
         super().__init__(
             sample_rate=sample_rate,
             num_speakers=num_speakers or 4,
-            device=device,
+            device=device,  # Manter como string na classe base
         )
 
         self.model_name = model_name
+
+        # IMPORTANTE: Detectar torch.device SEMPRE no __init__()
+        # para evitar problema com singleton pattern
+        self.torch_device = self._detect_device(device)
 
         # Carregar modelo compartilhado (singleton)
         if SortformerBatchBackend._shared_model is None:
@@ -119,23 +123,33 @@ class SortformerBatchBackend(DiarizationBackend):
 
         logger.info(
             f"SortformerBatchBackend inicializado "
-            f"(chunk_duration={self.chunk_duration_seconds:.2f}s, device={self.device})"
+            f"(chunk_duration={self.chunk_duration_seconds:.2f}s, device={self.torch_device})"
         )
+
+    def _detect_device(self, device: str) -> torch.device:
+        """
+        Detecta o device apropriado
+
+        Args:
+            device: "auto", "cpu", "cuda", ou "mps"
+
+        Returns:
+            torch.device object
+        """
+        if device == "auto":
+            if torch.cuda.is_available():
+                return torch.device("cuda")
+            elif torch.backends.mps.is_available():
+                return torch.device("mps")
+            else:
+                return torch.device("cpu")
+        else:
+            return torch.device(device)
 
     def _load_model(self):
         """Carrega modelo Sortformer e configura parâmetros"""
-        # Auto-detect device
-        if self.device == "auto":
-            if torch.cuda.is_available():
-                device = torch.device("cuda")
-            elif torch.backends.mps.is_available():
-                device = torch.device("mps")
-            else:
-                device = torch.device("cpu")
-        else:
-            device = torch.device(self.device)
-
-        self.device = device
+        # Usar torch_device (já detectado no __init__)
+        device = self.torch_device
 
         # 1. Carregar modelo
         # Tentar carregar com strict=False para evitar problemas de versão
@@ -222,8 +236,8 @@ class SortformerBatchBackend(DiarizationBackend):
 
         for chunk in chunks:
             # Converter para tensor
-            audio_signal = torch.tensor(chunk, dtype=torch.float32).unsqueeze(0).to(self.device)
-            audio_signal_length = torch.tensor([audio_signal.shape[1]]).to(self.device)
+            audio_signal = torch.tensor(chunk, dtype=torch.float32).unsqueeze(0).to(self.torch_device)
+            audio_signal_length = torch.tensor([audio_signal.shape[1]]).to(self.torch_device)
 
             # Extrair features mel
             processed_signal, _ = self.audio2mel.get_features(
@@ -247,7 +261,7 @@ class SortformerBatchBackend(DiarizationBackend):
         batch_size = 1
         streaming_state = self._init_streaming_state(batch_size)
         total_preds = torch.zeros(
-            (batch_size, 0, self.model.sortformer_modules.n_spk), device=self.device
+            (batch_size, 0, self.model.sortformer_modules.n_spk), device=self.torch_device
         )
 
         # 3. Processar cada chunk
@@ -263,7 +277,7 @@ class SortformerBatchBackend(DiarizationBackend):
                 streaming_state, total_preds = self.model.forward_streaming_step(
                     processed_signal=chunk_feat,
                     processed_signal_length=torch.tensor([chunk_feat.shape[1]]).to(
-                        self.device
+                        self.torch_device
                     ),
                     streaming_state=streaming_state,
                     total_preds=total_preds,
@@ -322,7 +336,7 @@ class SortformerBatchBackend(DiarizationBackend):
                 self.model.sortformer_modules.spkcache_len,
                 self.model.sortformer_modules.fc_d_model,
             ),
-            device=self.device,
+            device=self.torch_device,
         )
         streaming_state.spkcache_preds = torch.zeros(
             (
@@ -330,10 +344,10 @@ class SortformerBatchBackend(DiarizationBackend):
                 self.model.sortformer_modules.spkcache_len,
                 self.model.sortformer_modules.n_spk,
             ),
-            device=self.device,
+            device=self.torch_device,
         )
         streaming_state.spkcache_lengths = torch.zeros(
-            (batch_size,), dtype=torch.long, device=self.device
+            (batch_size,), dtype=torch.long, device=self.torch_device
         )
         streaming_state.fifo = torch.zeros(
             (
@@ -341,16 +355,16 @@ class SortformerBatchBackend(DiarizationBackend):
                 self.model.sortformer_modules.fifo_len,
                 self.model.sortformer_modules.fc_d_model,
             ),
-            device=self.device,
+            device=self.torch_device,
         )
         streaming_state.fifo_lengths = torch.zeros(
-            (batch_size,), dtype=torch.long, device=self.device
+            (batch_size,), dtype=torch.long, device=self.torch_device
         )
         streaming_state.mean_sil_emb = torch.zeros(
-            (batch_size, self.model.sortformer_modules.fc_d_model), device=self.device
+            (batch_size, self.model.sortformer_modules.fc_d_model), device=self.torch_device
         )
         streaming_state.n_sil_frames = torch.zeros(
-            (batch_size,), dtype=torch.long, device=self.device
+            (batch_size,), dtype=torch.long, device=self.torch_device
         )
 
         return streaming_state
