@@ -95,12 +95,22 @@ class DiarizationProcessor:
         try:
             from .sortformer_backend import SortformerBackend
 
-            self.backend = SortformerBackend(
-                sample_rate=self.sample_rate,
-                num_speakers=self.num_speakers,
-                device=self.device,
-                **self.backend_kwargs,
-            )
+            # Sortformer só aceita: sample_rate, num_speakers, device, chunk_duration
+            sortformer_kwargs = {
+                'sample_rate': self.sample_rate,
+                'num_speakers': self.num_speakers,
+                'device': self.device,
+            }
+
+            # Adicionar chunk_duration se presente em backend_kwargs
+            if 'chunk_duration' in self.backend_kwargs:
+                sortformer_kwargs['chunk_duration'] = self.backend_kwargs['chunk_duration']
+
+            # model_name também é aceito
+            if 'model_name' in self.backend_kwargs:
+                sortformer_kwargs['model_name'] = self.backend_kwargs['model_name']
+
+            self.backend = SortformerBackend(**sortformer_kwargs)
             logger.info("Backend Sortformer inicializado")
         except ImportError as e:
             logger.error(
@@ -114,12 +124,20 @@ class DiarizationProcessor:
         try:
             from .pyannote_backend import PyannoteBackend
 
-            self.backend = PyannoteBackend(
-                sample_rate=self.sample_rate,
-                num_speakers=self.num_speakers,
-                device=self.device,
-                **self.backend_kwargs,
-            )
+            # Pyannote aceita: sample_rate, num_speakers, min_speakers, max_speakers, auth_token, device, model_name
+            pyannote_kwargs = {
+                'sample_rate': self.sample_rate,
+                'num_speakers': self.num_speakers,
+                'device': self.device,
+            }
+
+            # Adicionar parâmetros específicos do Pyannote se presentes
+            pyannote_specific_params = ['min_speakers', 'max_speakers', 'auth_token', 'model_name']
+            for param in pyannote_specific_params:
+                if param in self.backend_kwargs:
+                    pyannote_kwargs[param] = self.backend_kwargs[param]
+
+            self.backend = PyannoteBackend(**pyannote_kwargs)
             logger.info("Backend Pyannote inicializado")
         except ImportError as e:
             logger.error(

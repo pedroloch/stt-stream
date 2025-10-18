@@ -21,6 +21,16 @@ echo ""
 echo "📊 Verificando GPU/CUDA..."
 python -c "import torch; print(f'✅ PyTorch: {torch.__version__}'); print(f'✅ CUDA available: {torch.cuda.is_available()}'); print(f'✅ CUDA version: {torch.version.cuda}'); print(f'✅ GPU: {torch.cuda.get_device_name(0) if torch.cuda.is_available() else \"N/A\"}')"
 
+# 1.5. Instalar ffmpeg (para NeMo/pydub)
+echo ""
+echo "📦 Instalando ffmpeg..."
+if ! command -v ffmpeg &> /dev/null; then
+    apt-get update -qq && apt-get install -y -qq ffmpeg > /dev/null 2>&1
+    echo "✅ ffmpeg instalado"
+else
+    echo "✅ ffmpeg já instalado"
+fi
+
 # 2. Clone repositório
 echo ""
 echo "📦 Clonando repositório..."
@@ -52,6 +62,32 @@ echo "📦 Instalando dependências (pode demorar 5-10 min)..."
 echo "   Instalando: Base + CUDA + Sortformer + Pyannote + VAD"
 poetry install --extras "all"
 
+# 4.5. Instalar cuDNN para ctranslate2 (faster-whisper)
+echo ""
+echo "📦 Instalando cuDNN (necessário para faster-whisper GPU)..."
+poetry run pip install nvidia-cudnn-cu12
+echo "✅ cuDNN instalado"
+
+# 4.6. Configurar LD_LIBRARY_PATH permanentemente
+echo ""
+echo "⚙️  Configurando LD_LIBRARY_PATH para cuDNN..."
+CUDNN_PATH=$(poetry run python -c "import nvidia.cudnn; import os; print(os.path.dirname(nvidia.cudnn.__file__))" 2>/dev/null)
+if [ -n "$CUDNN_PATH" ]; then
+    # Adicionar ao bashrc se ainda não existe
+    if ! grep -q "nvidia.cudnn" ~/.bashrc; then
+        echo '' >> ~/.bashrc
+        echo '# cuDNN path for faster-whisper' >> ~/.bashrc
+        echo 'export LD_LIBRARY_PATH=$(poetry run python -c "import nvidia.cudnn; import os; print(os.path.dirname(nvidia.cudnn.__file__))" 2>/dev/null)/lib:$LD_LIBRARY_PATH' >> ~/.bashrc
+        echo "✅ LD_LIBRARY_PATH configurado em ~/.bashrc"
+    else
+        echo "✅ LD_LIBRARY_PATH já configurado"
+    fi
+    # Exportar para sessão atual
+    export LD_LIBRARY_PATH=$CUDNN_PATH/lib:$LD_LIBRARY_PATH
+else
+    echo "⚠️  Aviso: Não foi possível detectar path do cuDNN"
+fi
+
 # 5. Configurar server-config.yaml
 echo ""
 echo "⚙️  Configurando server..."
@@ -60,12 +96,15 @@ if [ ! -f "server-config.yaml" ]; then
 
     # Configurar para GPU
     sed -i 's/host: "127.0.0.1"/host: "0.0.0.0"/' server-config.yaml
-    sed -i 's/backend: "mlx"/backend: "cuda"/' server-config.yaml
-    sed -i 's/device: "auto"/device: "cuda:0"/' server-config.yaml
+    sed -i 's/backend: "auto"/backend: "faster-whisper"/' server-config.yaml
+    sed -i 's/device: "auto"/device: "cuda"/' server-config.yaml
     sed -i 's/compute_type: "auto"/compute_type: "float16"/' server-config.yaml
 
+    # Usar modelo distil-large-v3 (6x mais rápido)
+    sed -i 's/model: "base"/model: "distil-large-v3"/' server-config.yaml
+
     # Habilitar diarization Sortformer
-    sed -i 's/backend: "none"/backend: "sortformer"/' server-config.yaml
+    sed -i 's/backend: "none"  # "none"/backend: "sortformer"  # "sortformer"/' server-config.yaml
 
     echo "✅ server-config.yaml criado e configurado para GPU"
 else
@@ -94,13 +133,20 @@ echo "📂 Diretório: /workspace/stt-stream"
 echo ""
 echo "🚀 Para iniciar o servidor:"
 echo "   cd /workspace/stt-stream"
-echo "   poetry shell"
-echo "   python -m server.main --config server-config.yaml"
+echo "   bash scripts/runpod_start.sh"
 echo ""
-echo "📝 Ou em background (tmux recomendado):"
+echo "📝 Ou manualmente (Poetry 2.0):"
+echo "   cd /workspace/stt-stream"
+echo "   source ~/.bashrc  # Carregar LD_LIBRARY_PATH"
+echo "   poetry run python -m server.main --config server-config.yaml"
+echo ""
+echo "🔧 Ou com argumentos personalizados:"
+echo "   poetry run python -m server.main --config server-config.yaml --model base --verbose"
+echo ""
+echo "📝 Em background (tmux recomendado):"
 echo "   tmux new -s whisper"
-echo "   cd /workspace/stt-stream && poetry shell"
-echo "   python -m server.main --config server-config.yaml"
+echo "   cd /workspace/stt-stream"
+echo "   bash scripts/runpod_start.sh"
 echo "   # Pressione Ctrl+B, depois D para detach"
 echo ""
 echo "📊 Monitorar GPU (em outra janela):"
@@ -114,5 +160,11 @@ echo "   Exemplo: https://<pod-id>-9090.proxy.runpod.net"
 echo ""
 echo "🧪 Testar health:"
 echo "   curl https://<pod-id>-9090.proxy.runpod.net/health"
+echo ""
+echo "⚙️  Configuração atual:"
+echo "   Backend: faster-whisper"
+echo "   Modelo: distil-large-v3 (6x mais rápido!)"
+echo "   Diarization: Sortformer (4 speakers)"
+echo "   Device: CUDA (GPU)"
 echo ""
 echo "=========================================="
