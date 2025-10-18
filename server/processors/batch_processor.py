@@ -131,10 +131,16 @@ class BatchProcessor:
 
             # 4. Post-processing (diarization)
             if request.enable_diarization:
-                self.logger.info("Aplicando diarization...")
-                diarization_start = time.time()
-                result = await self._apply_diarization(result, audio_data, request)
-                metrics["diarization_time"] = time.time() - diarization_start
+                # WhisperX tem diarization integrada - não aplicar separadamente
+                backend_name = backend.info.name if hasattr(backend, 'info') else request.model
+                if backend_name == "whisperx":
+                    self.logger.info("⏭️  Diarization bypassed (WhisperX já tem integrado)")
+                    self.logger.debug("WhisperX retorna speaker_id automaticamente nos segments")
+                else:
+                    self.logger.info("Aplicando diarization...")
+                    diarization_start = time.time()
+                    result = await self._apply_diarization(result, audio_data, request)
+                    metrics["diarization_time"] = time.time() - diarization_start
 
             # 5. Formatar resposta
             formatting_start = time.time()
