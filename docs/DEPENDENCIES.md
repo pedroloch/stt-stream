@@ -135,19 +135,25 @@ poetry install --extras "cuda diarization-sortformer"
 
 ---
 
-### 4. RunPod GPU - WhisperX (Tudo Integrado)
+### 4. RunPod GPU - WhisperX (Backend Alternativo)
 
-Backend alternativo com diarization embutida:
+⚠️ **ATENÇÃO:** WhisperX requer numpy>=2.0, incompatível com NeMo (numpy<2.0).
+**WhisperX e Sortformer são mutuamente exclusivos!**
+
+**Instalação manual (após `poetry install --extras "cuda"`):**
 
 ```bash
-poetry install --extras "cuda whisperx"
+poetry install --extras "cuda"
+poetry run pip install git+https://github.com/m-bain/whisperx.git
 ```
 
 **Inclui:**
 - faster-whisper (fallback)
 - torch + torchaudio
 - nvidia-cudnn-cu12
-- whisperx (git, diarization pyannote integrada)
+- whisperx (manual, diarization pyannote integrada)
+
+**NOTA:** Não instale WhisperX se você precisa de Sortformer!
 
 ---
 
@@ -268,13 +274,14 @@ make check-deps
 
 ### Problema: `ModuleNotFoundError: No module named 'whisperx'`
 
-**Solução:** WhisperX não instalado.
+**Solução:** WhisperX deve ser instalado manualmente (conflito numpy com NeMo).
 
 ```bash
-poetry install --extras "all"
-# ou
-poetry install --extras "whisperx"
+poetry install --extras "cuda"
+poetry run pip install git+https://github.com/m-bain/whisperx.git
 ```
+
+**ATENÇÃO:** Não instale junto com `nemo-toolkit` (Sortformer)!
 
 ---
 

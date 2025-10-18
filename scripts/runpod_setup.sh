@@ -160,6 +160,40 @@ print('')
 print('✅ Imports base OK! Backends opcionais podem não estar instalados.')
 "
 
+# 6.5. Perguntar sobre WhisperX (opcional - conflita com NeMo)
+echo ""
+echo "=========================================="
+echo "⚠️  WhisperX vs Sortformer"
+echo "=========================================="
+echo ""
+echo "WhisperX e Sortformer são MUTUAMENTE EXCLUSIVOS (conflito numpy):"
+echo "  - WhisperX: Backend com diarization pyannote integrada (numpy>=2.0)"
+echo "  - Sortformer: Diarization SOTA 4 speakers (numpy<2.0, JÁ INSTALADO)"
+echo ""
+echo "Você instalou Sortformer. Se quiser WhisperX, precisa DESINSTALAR NeMo:"
+echo "  poetry run pip uninstall nemo-toolkit -y"
+echo "  poetry run pip install git+https://github.com/m-bain/whisperx.git"
+echo ""
+echo "❓ Deseja instalar WhisperX AGORA (vai desinstalar NeMo/Sortformer)? [y/N]"
+read -t 10 -r INSTALL_WHISPERX || INSTALL_WHISPERX="n"
+
+if [[ "$INSTALL_WHISPERX" =~ ^[Yy]$ ]]; then
+    echo ""
+    echo "📦 Desinstalando NeMo e instalando WhisperX..."
+    poetry run pip uninstall nemo-toolkit -y
+    poetry run pip install git+https://github.com/m-bain/whisperx.git
+    echo "✅ WhisperX instalado (Sortformer removido)"
+
+    # Atualizar config para usar whisperx
+    if [ -f "server-config.yaml" ]; then
+        sed -i 's/backend: "sortformer"/backend: "none"/' server-config.yaml
+        echo "   server-config.yaml atualizado (diarization desabilitado)"
+        echo "   Para usar diarization do WhisperX, configure manualmente"
+    fi
+else
+    echo "⏭️  Mantendo Sortformer (WhisperX não instalado)"
+fi
+
 # 7. Informações
 echo ""
 echo "=========================================="
