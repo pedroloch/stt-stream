@@ -272,6 +272,31 @@ def cli() -> None:
         try:
             config = Config.from_file(args.config)
             print(f"✅ Configuração carregada de: {args.config}")
+
+            # Sobrescrever com argumentos CLI (se fornecidos)
+            if args.host:
+                config.server.host = args.host
+                print(f"   → Host sobrescrito: {args.host}")
+            if args.port:
+                config.server.port = args.port
+                print(f"   → Port sobrescrito: {args.port}")
+            if args.model:
+                config.whisper.model = args.model
+                print(f"   → Model sobrescrito: {args.model}")
+            if args.language:
+                config.whisper.language = args.language
+                print(f"   → Language sobrescrito: {args.language}")
+            if args.backend:
+                config.whisper.backend = args.backend
+                print(f"   → Backend sobrescrito: {args.backend}")
+            if args.log_level:
+                config.logging.level = args.log_level
+                print(f"   → Log level sobrescrito: {args.log_level}")
+            if args.verbose:
+                config.debug.verbose = True
+                config.logging.level = "debug"
+                print(f"   → Verbose mode ativado")
+
         except Exception as e:
             print(f"❌ Erro ao carregar config: {e}")
             sys.exit(1)

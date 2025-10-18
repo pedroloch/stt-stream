@@ -37,8 +37,14 @@ clean:  ## Clean cache and build artifacts
 	find . -type d -name "*.egg-info" -exec rm -rf {} + 2>/dev/null || true
 	rm -rf htmlcov .coverage 2>/dev/null || true
 
-dev:  ## Run development server (Python)
-	poetry run python -m server.main --config server-config.example.yaml
+dev:  ## Run development server (Python) - Use: make dev ARGS="--model base --backend cuda"
+	poetry run python -m server.main --config server-config.example.yaml $(ARGS)
+
+dev-gpu:  ## Run with GPU config (CUDA backend, large model)
+	poetry run python -m server.main --config server-config.example.yaml --backend cuda --model large-v3-turbo
+
+dev-mlx:  ## Run with MLX config (Apple Silicon)
+	poetry run python -m server.main --config server-config.example.yaml --backend mlx --model mlx-community/distil-whisper-large-v3
 
 bun-install:  ## Install Bun client dependencies
 	cd sandbox && bun install
