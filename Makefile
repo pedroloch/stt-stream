@@ -1,11 +1,20 @@
-.PHONY: help install lint lint-fix format format-check type test test-cov check clean dev bun-install bun-dev bun-start
+.PHONY: help install install-cuda install-all check-deps lint lint-fix format format-check type test test-cov check clean dev bun-install bun-dev bun-start
 
 help:  ## Show this help message
 	@echo "Available commands:"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
 
-install:  ## Install dependencies with poetry
+install:  ## Install base dependencies with poetry
 	poetry install
+
+install-cuda:  ## Install CUDA dependencies (GPU support)
+	poetry install --extras "cuda"
+
+install-all:  ## Install all dependencies (GPU + diarization + WhisperX)
+	poetry install --extras "all"
+
+check-deps:  ## Check installed dependencies
+	poetry run python scripts/check_deps.py
 
 lint:  ## Run ruff linter (check only)
 	poetry run ruff check server

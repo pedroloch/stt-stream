@@ -116,11 +116,48 @@ fi
 echo ""
 echo "🧪 Testando imports..."
 poetry run python -c "
-import torch
-import torchaudio
-import faster_whisper
-from nemo.collections.asr.models import SortformerEncLabelModel
-print('✅ Todos os imports OK!')
+import sys
+
+# Base dependencies
+try:
+    import torch
+    import torchaudio
+    import faster_whisper
+    print('✅ Base (faster-whisper + torch): OK')
+except ImportError as e:
+    print(f'❌ Base dependencies: {e}')
+    sys.exit(1)
+
+# WhisperX (opcional)
+try:
+    import whisperx
+    print('✅ WhisperX: OK')
+except ImportError:
+    print('⚠️  WhisperX: Não instalado (opcional)')
+
+# NeMo Sortformer (opcional)
+try:
+    from nemo.collections.asr.models import SortformerEncLabelModel
+    print('✅ NeMo Sortformer: OK')
+except ImportError:
+    print('⚠️  NeMo Sortformer: Não instalado (opcional)')
+
+# Pyannote (opcional)
+try:
+    import pyannote.audio
+    print('✅ Pyannote Audio: OK')
+except ImportError:
+    print('⚠️  Pyannote Audio: Não instalado (opcional)')
+
+# cuDNN
+try:
+    import nvidia.cudnn
+    print('✅ cuDNN: OK')
+except ImportError:
+    print('⚠️  cuDNN: Não instalado (pode causar problemas com CUDA)')
+
+print('')
+print('✅ Imports base OK! Backends opcionais podem não estar instalados.')
 "
 
 # 7. Informações
