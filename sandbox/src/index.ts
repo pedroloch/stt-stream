@@ -275,22 +275,6 @@ class WhisperStreamClient {
     return lines.length > 0 ? lines : [text];
   }
 
-  private updatePartialTranscription(text: string) {
-    // Limpar linha anterior
-    process.stdout.write("\r" + " ".repeat(100) + "\r");
-
-    // Mostrar nova transcrição parcial
-    const wrapped = this.wordWrap(
-      text,
-      this.config.display.word_wrap_width || 80
-    );
-    const color = this.getChalkColor(this.config.display.colors.partial);
-
-    if (wrapped.length > 0) {
-      process.stdout.write("🎤 " + color(wrapped[0]));
-    }
-  }
-
   // ============================================
   // Server Communication
   // ============================================
@@ -410,7 +394,7 @@ class WhisperStreamClient {
   }
 
   private handleTranscription(message: TranscriptionMessage) {
-    const { text, is_final, confidence, timestamp } = message;
+    const { text, is_final } = message;
 
     // Filtro: ignorar se vazio ou muito curto
     if (!text || text.trim().length < 2) {
@@ -428,29 +412,116 @@ class WhisperStreamClient {
       // ✅ TRANSCRIÇÃO FINAL (confirmada pelo LocalAgreement)
       // LocalAgreement envia apenas o NOVO texto confirmado (incremental)
 
+      this.logDebug(`Received FINAL: "${text.trim()}"`);
+      this.logDebug(`Current confirmed: "${this.confirmedText}"`);
+
       // Limpar linha parcial antes de adicionar final
-      process.stdout.write("\r" + " ".repeat(100) + "\r");
+      const clearWidth = Math.min(process.stdout.columns || 120, 150);
+      process.stdout.write("\r" + " ".repeat(clearWidth) + "\r");
 
       // Acumular texto confirmado
       this.confirmedText += (this.confirmedText ? " " : "") + text.trim();
 
-      const historyItem: MessageHistoryItem = {
-        timestamp: new Date(timestamp),
-        text: text.trim(), // Mostrar apenas o novo pedaço
-        is_final: true,
-        confidence,
-      };
+      this.logDebug(`New confirmed total: "${this.confirmedText}"`);
 
-      this.messageHistory.push(historyItem);
-
-      // Renderizar só a nova mensagem confirmada
-      this.renderMessage(historyItem);
-
-      this.logDebug(`Confirmed text accumulated: "${this.confirmedText}"`);
-    } else if (this.config.display.show_partial) {
+      // Mostrar texto acumulado completo numa linha
+      this.renderConfirmedText();
+    } else {
       // ⏳ TRANSCRIÇÃO PARCIAL (preview, não confirmada ainda)
-      // Mostra o que está sendo processado no buffer
-      this.updatePartialTranscription(text);
+      // O servidor envia TUDO (confirmado + novo), precisamos filtrar
+
+      // Determinar modo de visualização
+      const partialMode =
+        this.config.display.partial_mode ||
+        (this.config.display.show_partial ? "inline" : "minimal");
+
+      if (partialMode === "minimal") {
+        // Não mostrar parcial, apenas final
+        return;
+      }
+
+      // Remover texto já confirmado
+      let newText = text;
+      if (this.confirmedText) {
+        // Se o texto parcial começa com texto confirmado, remover
+        if (text.startsWith(this.confirmedText)) {
+          newText = text.substring(this.confirmedText.length).trim();
+        }
+      }
+
+      // Mostrar apenas o novo texto hipotético
+      if (newText && partialMode === "inline") {
+        // Modo inline: mostrar texto confirmado + (hipótese)
+        this.renderConfirmedTextWithHypothesis(newText);
+      }
+    }
+  }
+
+  private renderConfirmedText() {
+    /**
+     * Renderiza apenas o texto confirmado (sem hipótese)
+     * Atualiza a mesma linha (sem \n)
+     */
+    const clearWidth = Math.min(process.stdout.columns || 120, 150);
+    process.stdout.write("\r" + " ".repeat(clearWidth) + "\r");
+
+    // Sempre usar branco para texto confirmado
+    const color = chalk.white;
+
+    // Quebrar linha se muito longo
+    const maxWidth = (process.stdout.columns || 80) - 2;
+    if (this.confirmedText.length > maxWidth) {
+      // Quebrar em múltiplas linhas
+      const lines = this.wordWrap(this.confirmedText, maxWidth);
+      // Limpar tela e mostrar todas as linhas
+      console.clear();
+      this.renderHeader();
+      lines.forEach((line) => console.log(color(line)));
+    } else {
+      // Inline update (mesma linha)
+      process.stdout.write(color(this.confirmedText));
+    }
+  }
+
+  private renderConfirmedTextWithHypothesis(hypothesis: string) {
+    /**
+     * Renderiza: Texto confirmado hipótese...
+     * Texto confirmado em branco, hipótese em cinza (dim), mesma linha
+     */
+    const confirmedColor = chalk.white;
+    const hypothesisColor = chalk.gray;
+
+    // Limitar tamanho da hipótese
+    const maxHypothesisLength = 40;
+    let displayHypothesis = hypothesis;
+    if (hypothesis.length > maxHypothesisLength) {
+      displayHypothesis =
+        hypothesis.substring(0, maxHypothesisLength - 3) + "...";
+    }
+
+    // Calcular tamanho total (sem parênteses)
+    const totalText = this.confirmedText + " " + displayHypothesis;
+    const maxWidth = (process.stdout.columns || 80) - 2;
+
+    if (totalText.length > maxWidth) {
+      // Muito longo: limpar tela e mostrar com word wrap
+      const lines = this.wordWrap(this.confirmedText, maxWidth);
+      console.clear();
+      this.renderHeader();
+      lines.forEach((line) => console.log(confirmedColor(line)));
+      // Hipótese em linha separada (sem parênteses)
+      // console.log(chalk.yellow(displayHypothesis));
+    } else {
+      // Inline update (mesma linha, sem parênteses)
+      const clearWidth = Math.min(process.stdout.columns || 120, 150);
+      process.stdout.write("\r" + " ".repeat(clearWidth) + "\r");
+
+      const output =
+        confirmedColor(this.confirmedText) +
+        " " +
+        chalk.dim(hypothesisColor(displayHypothesis));
+
+      process.stdout.write(output);
     }
   }
 

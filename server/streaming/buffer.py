@@ -32,9 +32,9 @@ class BufferConfig:
 
     min_chunk_size: float = 1.0  # segundos (tamanho mínimo para processar)
     buffer_trimming: str = "segment"  # "segment" ou "sentence"
-    buffer_trimming_sec: float = 15.0  # Trim apenas quando buffer > 15s (conservador!)
+    buffer_trimming_sec: float = 10.0  # Trim quando buffer > 10s (balanço performance/accuracy)
     agreement_threshold: int = 2  # Não usado mais (HypothesisBuffer sempre n=2)
-    max_buffer_size: float = 30.0  # segundos (limite hard de memória)
+    max_buffer_size: float = 20.0  # segundos (limite hard de memória - força trim se exceder)
 
 
 class StreamingBuffer:
@@ -153,8 +153,8 @@ class StreamingBuffer:
                 return language_prompts.get(self.backend.language, "")
             return ""
 
-        # Concatenar texto
-        full_text = " ".join(w[2] for w in scrolled_away_words)
+        # Concatenar texto (words já incluem espaços, então concatenar sem espaço adicional)
+        full_text = "".join(w[2] for w in scrolled_away_words).strip()
 
         # Últimas 200 chars apenas (limite do Whisper)
         prompt = full_text[-200:] if len(full_text) > 200 else full_text
@@ -194,9 +194,10 @@ class StreamingBuffer:
         prompt = self._get_prompt()
 
         # Transcrever buffer completo
-        logger.debug(
-            f"Transcrevendo buffer: {duration:.2f}s "
-            f"(offset: {self.buffer_time_offset:.2f}s)"
+        logger.info(
+            f"📊 Transcrevendo buffer: {duration:.2f}s "
+            f"(offset: {self.buffer_time_offset:.2f}s, "
+            f"confirmadas: {len(self.commited_words)} palavras)"
         )
 
         result = await self.backend.transcribe_chunk(
@@ -229,11 +230,14 @@ class StreamingBuffer:
 
         if confirmed_words:
             # ✅ TEXTO CONFIRMADO!
-            confirmed_text = " ".join(w[2] for w in confirmed_words)
+            # NOTE: Whisper words já incluem espaços (ex: ' olá', ' tudo')
+            # Por isso concatenamos sem espaço adicional e depois strip()
+            confirmed_text = "".join(w[2] for w in confirmed_words).strip()
 
             logger.info(
                 f"✅ Confirmado ({len(confirmed_words)} palavras): '{confirmed_text}'"
             )
+            logger.debug(f"   Palavras: {[w[2] for w in confirmed_words]}")
 
             # Adicionar ao histórico de palavras confirmadas
             self.commited_words.extend(confirmed_words)

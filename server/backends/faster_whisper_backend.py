@@ -268,6 +268,15 @@ class FasterWhisperBackend(WhisperBackend):
             for seg in segments_list:
                 # Converter words se existirem
                 words = None
+
+                # ⭐ DEBUG: Verificar se words está presente
+                if not hasattr(seg, "words"):
+                    self.logger.warning(f"Segmento não tem atributo 'words': {seg}")
+                elif seg.words is None:
+                    self.logger.warning(f"Segmento.words é None para: '{seg.text}'")
+                elif not seg.words:
+                    self.logger.warning(f"Segmento.words está vazio para: '{seg.text}'")
+
                 if hasattr(seg, "words") and seg.words:
                     # Filtrar segmentos de silêncio (no_speech_prob > 0.9)
                     # CRÍTICO: Evita processar/confirmar alucinações!
@@ -289,6 +298,9 @@ class FasterWhisperBackend(WhisperBackend):
 
                     # Adicionar à lista flat
                     all_words.extend(words)
+                    self.logger.debug(f"Extraídas {len(words)} words do segmento: '{seg.text[:30]}...'")
+                else:
+                    self.logger.warning(f"Segmento sem words (word_timestamps desabilitado?): '{seg.text}'")
 
                 normalized_segments.append(
                     Segment(

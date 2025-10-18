@@ -38,8 +38,11 @@ audio:
 
 # Configurações de Display (Terminal)
 display:
-  # Mostrar transcrições parciais (enquanto processa)
-  show_partial: true
+  # Modo de visualização de transcrições parciais
+  # "inline"  - Mostra parcial inline (atualiza mesma linha, discreto)
+  # "minimal" - Não mostra parcial, apenas final
+  # "full"    - Mostra parcial com quebras de linha (verbose)
+  partial_mode: "inline"
 
   # Mostrar timestamps
   show_timestamps: true

@@ -37,7 +37,8 @@ class WhisperConfig:
     vad_threshold: float = 0.5
     min_chunk_size: float = 1.0
     buffer_trimming: BufferTrimming | str = BufferTrimming.SEGMENT
-    buffer_trimming_sec: float = 15.0  # ⭐ NOVO: Threshold para trimming conservador
+    buffer_trimming_sec: float = 10.0  # ⭐ NOVO: Threshold para trimming conservador
+    max_buffer_size: float = 20.0  # ⭐ NOVO: Limite máximo do buffer (força trim se exceder)
     beam_size: int = 1
     best_of: int = 1
     temperature: float = 0.0

@@ -34,6 +34,7 @@ class MLXBackend(WhisperBackend):
     Capabilities:
     - TRANSCRIPTION: Transcrição básica
     - STREAMING: Processamento em streaming
+    - WORD_TIMESTAMPS: Word-level timestamps (para LocalAgreement)
     """
 
     # Class-level constant
@@ -43,7 +44,7 @@ class MLXBackend(WhisperBackend):
         capabilities={
             Capability.TRANSCRIPTION,
             Capability.STREAMING,
-            # MLX pode ter word timestamps no futuro
+            Capability.WORD_TIMESTAMPS,  # ⭐ Agora suporta word timestamps!
         },
         model_sizes={"tiny", "small", "medium", "large", "large-v3"},
     )
@@ -148,6 +149,8 @@ class MLXBackend(WhisperBackend):
                 "language": self.language if self.language != "auto" else None,
                 "task": "transcribe",
                 "initial_prompt": context or self.current_context or None,
+                # ⭐ WORD TIMESTAMPS! (necessário para LocalAgreement)
+                "word_timestamps": True,
             }
 
             # Adicionar opções adicionais se fornecidas
@@ -193,25 +196,51 @@ class MLXBackend(WhisperBackend):
                 confidence = 1.0 - (sum(no_speech_probs) / len(no_speech_probs))
 
             # Converter segmentos para formato normalizado
-            segments = [
-                Segment(
-                    start=seg.get("start", 0),
-                    end=seg.get("end", 0),
-                    text=seg.get("text", "").strip(),
-                    # MLX não tem word timestamps por enquanto
-                    words=None,
-                )
-                for seg in segments_raw
-            ] if segments_raw else None
+            from ..models.result import Word
 
-            # Retornar TranscriptionResult normalizado
+            segments = []
+            all_words = []  # Lista flat de todas as palavras (para HypothesisBuffer)
+
+            for seg in segments_raw:
+                # Extrair words se existirem
+                words = None
+                if "words" in seg and seg["words"]:
+                    words = [
+                        Word(
+                            word=w.get("word", ""),
+                            start=w.get("start", 0.0),
+                            end=w.get("end", 0.0),
+                            probability=w.get("probability", 0.0),
+                        )
+                        for w in seg["words"]
+                    ]
+                    all_words.extend(words)
+                else:
+                    self.logger.debug(f"Segmento MLX sem words: '{seg.get('text', '')[:30]}...'")
+
+                segments.append(
+                    Segment(
+                        start=seg.get("start", 0),
+                        end=seg.get("end", 0),
+                        text=seg.get("text", "").strip(),
+                        words=words,
+                    )
+                )
+
+            if not all_words:
+                self.logger.warning("MLX não retornou word timestamps! LocalAgreement não funcionará.")
+
+            segments_list = segments if segments else None
+
+            # Retornar TranscriptionResult normalizado com words! ⭐
             return TranscriptionResult(  # type: ignore[return-value]
                 text=text,
                 is_final=True,
                 confidence=float(confidence),
                 language=result.get("language", self.language),
                 timestamp=datetime.now(),
-                segments=segments,
+                segments=segments_list,
+                words=all_words if all_words else None,  # ⭐ Lista flat para HypothesisBuffer
             )
 
         except Exception as e:

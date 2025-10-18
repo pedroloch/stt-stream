@@ -62,6 +62,16 @@ class WhisperProcessor:
 
         self.logger.info("Inicializando Whisper Processor...")
 
+        # Mostrar configurações do buffer
+        self.logger.info("="*60)
+        self.logger.info("⚙️  CONFIGURAÇÕES DE STREAMING BUFFER")
+        self.logger.info("="*60)
+        self.logger.info(f"  min_chunk_size: {self.config.whisper.min_chunk_size}s")
+        self.logger.info(f"  buffer_trimming: {self.config.whisper.buffer_trimming}")
+        self.logger.info(f"  buffer_trimming_sec: {self.config.whisper.buffer_trimming_sec}s")
+        self.logger.info(f"  max_buffer_size: {self.config.whisper.max_buffer_size}s")
+        self.logger.info("="*60)
+
         # Detectar plataforma
         platform = detect_platform()
         self.logger.info(f"Plataforma: {platform.value}")

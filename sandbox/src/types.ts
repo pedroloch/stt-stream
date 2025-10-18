@@ -104,10 +104,16 @@ export interface DisplayColors {
 }
 
 /**
+ * Modo de visualização de parciais
+ */
+export type PartialMode = "inline" | "minimal" | "full";
+
+/**
  * Configuração de display
  */
 export interface DisplayConfig {
-  show_partial: boolean;
+  partial_mode?: PartialMode;  // Modo de visualização (inline, minimal, full)
+  show_partial?: boolean;       // Deprecated: use partial_mode
   show_timestamps: boolean;
   colors: DisplayColors;
   max_history?: number;

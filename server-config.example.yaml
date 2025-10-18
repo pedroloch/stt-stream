@@ -23,7 +23,7 @@ server:
 whisper:
   # Modelo: tiny, base, small, medium, large, large-v3, large-v3-turbo
   # Modelos maiores = mais precisos mas mais lentos
-  model: "small"
+  model: "mlx-community/distil-whisper-large-v3"
 
   # Idioma (auto para detecção automática)
   # Exemplos: pt, en, es, fr, de, etc
@@ -34,7 +34,7 @@ whisper:
   # mlx = Apple Silicon (M1/M2/M3)
   # cuda = NVIDIA GPU
   # cpu = CPU (fallback, mais lento)
-  backend: "auto"
+  backend: "mlx"
 
   # Device específico (para CUDA: cuda:0, cuda:1, etc)
   device: "auto"
@@ -47,8 +47,10 @@ whisper:
 
   # VAD (Voice Activity Detection)
   # Detecta quando há fala e reduz processamento desnecessário
+  # ⚠️ DESABILITADO: VAD estava removendo 100% do áudio com threshold 0.5
+  # TODO: Reavaliar VAD com threshold mais baixo (0.2-0.3) no futuro
   use_vad: true
-  vad_threshold: 0.5  # ⭐ Aumentado de 0.25 para evitar processar silêncio
+  vad_threshold: 0.25  # Não usado quando use_vad=false
 
   # Configurações de Streaming Buffer (LocalAgreement)
   # Chunk mínimo antes de processar (segundos)
@@ -60,8 +62,14 @@ whisper:
   buffer_trimming: "segment"
 
   # ⭐ NOVO: Threshold para trimming conservador
-  # Trim apenas quando buffer > 15s (evita trim agressivo que causa alucinações)
-  buffer_trimming_sec: 15.0
+  # Trim apenas quando buffer > 10s (balanço entre performance e accuracy)
+  # Valores menores = mais rápido mas pode ter pequena perda de accuracy
+  # Valores maiores = mais contexto mas pode ficar lento em conversas longas
+  buffer_trimming_sec: 10.0
+
+  # Limite máximo do buffer de áudio (segundos)
+  # Se exceder, força trim para evitar OOM e lentidão
+  max_buffer_size: 10.0
 
   # Beam size para decodificação
   # Maior = mais preciso mas mais lento (1-5)

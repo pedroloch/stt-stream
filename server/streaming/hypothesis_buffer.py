@@ -110,26 +110,29 @@ class HypothesisBuffer:
         cn = len(self.commited_in_buffer)
         nn = len(self.new)
 
-        # Testar n-gramas de 1 a 5 palavras (ou menor se não houver palavras suficientes)
-        for i in range(1, min(min(cn, nn), 5) + 1):
+        # Testar n-gramas de 5 a 1 palavras (do maior para o menor)
+        # Testar do maior para o menor garante que removemos o overlap máximo
+        for i in range(min(min(cn, nn), 5), 0, -1):
             # Últimas i palavras confirmadas
             commited_ngram = " ".join(
-                self.commited_in_buffer[-j][2] for j in range(1, i + 1)
-            )[::-1]  # Reverse (pq pegamos de trás pra frente)
+                word[2] for word in self.commited_in_buffer[-i:]
+            )
 
             # Primeiras i palavras novas
-            new_ngram = " ".join(self.new[j][2] for j in range(i))
+            new_ngram = " ".join(
+                word[2] for word in self.new[:i]
+            )
 
             if commited_ngram == new_ngram:
                 # Match! Remover i palavras duplicadas
-                removed = []
-                for j in range(i):
-                    word = self.new.pop(0)
-                    removed.append(repr(word[2]))
+                removed = [self.new[j][2] for j in range(i)]
+
+                # Remover as palavras duplicadas
+                self.new = self.new[i:]
 
                 logger.debug(
                     f"Removidas {i} palavras duplicadas (n-gram match): "
-                    f"{' '.join(removed)}"
+                    f"{repr(' '.join(removed))}"
                 )
                 break
 
