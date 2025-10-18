@@ -112,10 +112,18 @@ class PyannoteBackend(DiarizationBackend):
 
     def _load_pipeline(self) -> "Pipeline":
         """Carrega o pipeline Pyannote"""
-        pipeline = Pipeline.from_pretrained(
-            self.model_name,
-            use_auth_token=self.auth_token,
-        )
+        # Pyannote 3.1+ usa 'token' em vez de 'use_auth_token'
+        try:
+            pipeline = Pipeline.from_pretrained(
+                self.model_name,
+                token=self.auth_token,
+            )
+        except TypeError:
+            # Fallback para versões antigas
+            pipeline = Pipeline.from_pretrained(
+                self.model_name,
+                use_auth_token=self.auth_token,
+            )
 
         # Mover para device apropriado
         if self.device == "auto":
