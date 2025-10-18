@@ -14,6 +14,7 @@ from .config import Config
 from .constants import DEFAULT_SAMPLE_RATE
 from .serializers import WebSocketSerializer
 from .streaming.buffer import BufferConfig, StreamingBuffer
+from .streaming.vad import VADChunker
 from .whisper_processor import WhisperProcessor
 
 
@@ -39,11 +40,43 @@ class WebSocketHandler:
         # Audio converter
         self.audio_converter = AudioConverter()
 
+        # ⭐ NOVO: VAD pré-processamento (se habilitado)
+        # NOTA: Requer PyTorch + torchaudio (opcional)
+        self.vad_preprocessing_enabled = False
+        self.vad_chunker = None
+
+        if config.whisper.use_vad:
+            try:
+                import torch
+                import torchaudio  # Verificar se está disponível
+
+                self.vad_chunker = VADChunker(
+                    threshold=config.whisper.vad_threshold,
+                    min_silence_duration=0.3,
+                    min_speech_duration=0.25,
+                )
+                # Testar se consegue carregar o modelo
+                self.vad_chunker._load_model()
+
+                self.vad_preprocessing_enabled = True
+                self.logger.info("✅ VAD pré-processamento habilitado (Silero VAD)")
+            except ImportError as e:
+                self.logger.info(
+                    f"VAD pré-processamento desabilitado: {e}. "
+                    "Para habilitar, instale: pip install torchaudio"
+                )
+            except Exception as e:
+                self.logger.warning(f"VAD pré-processamento desabilitado: {e}")
+
         # Tracking de clientes conectados
         self.active_connections: set[web.WebSocketResponse] = set()
 
         # Streaming buffers por cliente (client_id -> StreamingBuffer)
         self.streaming_buffers: dict[int, StreamingBuffer] = {}
+
+        # ⭐ Stats de VAD preprocessing (para monitoramento)
+        self.vad_stats_silence_chunks = 0
+        self.vad_stats_speech_chunks = 0
 
     async def handle_websocket(self, request: web.Request) -> web.WebSocketResponse:
         """
@@ -201,6 +234,27 @@ class WebSocketHandler:
                     config=buffer_config
                 )
                 self.streaming_buffers[client_id] = buffer
+
+            # ⭐ VAD PRÉ-PROCESSAMENTO: Verificar se chunk tem fala
+            if self.vad_preprocessing_enabled and self.vad_chunker:
+                try:
+                    has_speech = self.vad_chunker.has_speech(audio_float, sample_rate=DEFAULT_SAMPLE_RATE)
+
+                    if not has_speech:
+                        # Silêncio detectado - pular processamento!
+                        self.vad_stats_silence_chunks += 1
+                        self.logger.debug(
+                            f"[{client_id}] 🔇 Silêncio detectado, pulando transcrição "
+                            f"({self.vad_stats_silence_chunks} silêncios / {self.vad_stats_speech_chunks} fala)"
+                        )
+                        return  # Não processar este chunk
+                    else:
+                        self.vad_stats_speech_chunks += 1
+                except Exception as e:
+                    # Erro no VAD - desabilitar para evitar loops de erro
+                    self.logger.warning(f"Erro no VAD, desabilitando: {e}")
+                    self.vad_preprocessing_enabled = False
+                    # Continuar processando normalmente sem VAD
 
             # Adicionar chunk ao buffer
             await buffer.add_chunk(audio_float)
