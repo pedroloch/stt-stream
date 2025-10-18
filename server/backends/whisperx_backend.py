@@ -80,18 +80,21 @@ class WhisperXBackend(WhisperBackend):
             )
 
             # 2. Carregar modelo de alinhamento (word timestamps precisos)
-            self.logger.info("Carregando modelo de alinhamento (wav2vec2)")
+            language_code = self.language if self.language != "auto" else "en"
+            self.logger.info(f"Carregando modelo de alinhamento (wav2vec2) para idioma: {language_code}")
             self.align_model = None
             self.align_metadata = None
             try:
                 self.align_model, self.align_metadata = whisperx.load_align_model(
-                    language_code=self.language if self.language != "auto" else "en",
+                    language_code=language_code,
                     device=self.device,
                 )
-                self.logger.info("✅ Modelo de alinhamento carregado")
+                self.logger.info(f"✅ Modelo de alinhamento carregado: {type(self.align_model).__name__}")
+                self.logger.info(f"✅ Metadata: {self.align_metadata if self.align_metadata else 'None'}")
             except Exception as e:
-                self.logger.warning(f"Não foi possível carregar modelo de alinhamento: {e}")
-                self.logger.warning("Word timestamps estarão disponíveis mas menos precisos")
+                self.logger.warning(f"❌ Não foi possível carregar modelo de alinhamento: {e}")
+                self.logger.warning("⚠️  Word timestamps estarão disponíveis mas menos precisos")
+                self.logger.warning(f"⚠️  Idioma solicitado: {language_code}")
 
             # 3. Carregar modelo de diarization (speaker identification)
             self.logger.info("Carregando modelo de diarization (pyannote.audio)")
@@ -166,13 +169,23 @@ class WhisperXBackend(WhisperBackend):
             # 2. Alinhar palavras (word timestamps precisos)
             if self.align_model and self.align_metadata:
                 self.logger.debug("Alinhando palavras com wav2vec2")
-                result = self.whisperx.align(
-                    result["segments"],
-                    self.align_model,
-                    self.align_metadata,
-                    audio,
-                    self.device,
-                    return_char_alignments=False,
+                try:
+                    result = self.whisperx.align(
+                        result["segments"],
+                        self.align_model,
+                        self.align_metadata,
+                        audio,
+                        self.device,
+                        return_char_alignments=False,
+                    )
+                    self.logger.debug(f"✅ Alinhamento concluído ({len(result['segments'])} segmentos)")
+                except Exception as e:
+                    self.logger.warning(f"❌ Erro ao alinhar palavras: {e}")
+                    self.logger.warning("⚠️  Usando timestamps originais do Whisper")
+            else:
+                self.logger.warning(
+                    f"⚠️  Alinhamento desabilitado (align_model={bool(self.align_model)}, "
+                    f"metadata={bool(self.align_metadata)})"
                 )
 
             # 3. Diarization (speaker identification)
@@ -206,19 +219,35 @@ class WhisperXBackend(WhisperBackend):
             # Converter segmentos
             normalized_segments = []
             for seg in segments_list:
-                # Words
+                # Words (verificar se têm timestamps - alinhamento pode ter falhado)
                 words = None
                 if "words" in seg:
-                    words = [
-                        Word(
-                            word=w["word"],
-                            start=w["start"],
-                            end=w["end"],
-                            probability=w.get("score", 1.0),
-                            speaker_id=w.get("speaker", None),  # ⭐ Speaker ID!
+                    words = []
+                    for w in seg["words"]:
+                        # Só incluir palavras com timestamps válidos
+                        if "start" in w and "end" in w:
+                            words.append(
+                                Word(
+                                    word=w["word"],
+                                    start=w["start"],
+                                    end=w["end"],
+                                    probability=w.get("score", 1.0),
+                                    speaker_id=w.get("speaker", None),  # ⭐ Speaker ID!
+                                )
+                            )
+                        else:
+                            # Palavra sem timestamps (alinhamento falhou)
+                            self.logger.debug(
+                                f"Palavra '{w.get('word', '?')}' sem timestamps (alinhamento falhou)"
+                            )
+
+                    # Se não há palavras válidas, deixar como None
+                    if not words:
+                        self.logger.warning(
+                            f"Segmento '{seg['text'][:30]}...' não tem palavras com timestamps. "
+                            "Alinhamento pode ter falhado."
                         )
-                        for w in seg["words"]
-                    ]
+                        words = None
 
                 normalized_segments.append(
                     Segment(
