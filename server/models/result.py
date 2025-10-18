@@ -190,6 +190,7 @@ class TranscriptionResult:
         translation: Traduções para outros idiomas (opcional - TRANSLATION)
         processing_time_ms: Tempo de processamento em milissegundos (opcional)
         model_name: Nome do modelo usado (opcional)
+        is_sentence_end: Se é fim de frase detectado por pausa longa (opcional)
 
     Example:
         >>> result = TranscriptionResult(
@@ -223,6 +224,7 @@ class TranscriptionResult:
     # Metadata opcional
     processing_time_ms: float | None = None
     model_name: str | None = None
+    is_sentence_end: bool = False  # ⭐ Indica fim de frase (detecção de pausa)
 
     @property
     def total_words(self) -> int:

@@ -35,6 +35,10 @@ class BufferConfig:
     buffer_trimming_sec: float = 10.0  # Trim quando buffer > 10s (balanço performance/accuracy)
     agreement_threshold: int = 2  # Não usado mais (HypothesisBuffer sempre n=2)
     max_buffer_size: float = 20.0  # segundos (limite hard de memória - força trim se exceder)
+    # Detecção de pausa (fim de frase)
+    pause_detection_enabled: bool = True  # Detectar pausas longas
+    pause_threshold_sec: float = 2.5  # Pausa > 2.5s = possível fim de frase
+    auto_punctuate_on_pause: bool = True  # Adicionar '.' se sem pontuação
 
 
 class StreamingBuffer:
@@ -79,11 +83,16 @@ class StreamingBuffer:
         # Formato: [(start, end, word), ...]
         self.commited_words: list[WordWithTimestamp] = []
 
+        # ⭐ Detecção de pausa: tracking temporal
+        self.last_audio_time: float = 0.0  # Timestamp do último chunk recebido
+        self.pause_detected_flag: bool = False  # Flag de pausa detectada
+
         logger.info(
             f"StreamingBuffer inicializado: "
             f"min_chunk={self.config.min_chunk_size}s, "
             f"buffer_trimming={self.config.buffer_trimming}, "
-            f"trim_threshold={self.config.buffer_trimming_sec}s"
+            f"trim_threshold={self.config.buffer_trimming_sec}s, "
+            f"pause_detection={'ON' if self.config.pause_detection_enabled else 'OFF'}"
         )
 
     async def add_chunk(self, audio_chunk: np.ndarray):
@@ -93,6 +102,22 @@ class StreamingBuffer:
         Args:
             audio_chunk: Array numpy (float32, mono, 16kHz)
         """
+        # ⭐ DETECÇÃO DE PAUSA: Verificar gap temporal
+        import time
+        current_time = time.time()
+
+        if self.config.pause_detection_enabled and self.last_audio_time > 0:
+            gap = current_time - self.last_audio_time
+
+            # Pausa longa detectada?
+            if gap > self.config.pause_threshold_sec and len(self.audio_buffer) > 0:
+                logger.info(
+                    f"⏸️  Pausa detectada: {gap:.2f}s (threshold: {self.config.pause_threshold_sec}s)"
+                )
+                self.pause_detected_flag = True
+
+        self.last_audio_time = current_time
+
         # Validar formato
         if audio_chunk.dtype != np.float32:
             audio_chunk = audio_chunk.astype(np.float32)
@@ -228,6 +253,35 @@ class StreamingBuffer:
         self.hypothesis.insert(words_timestamped, self.buffer_time_offset)
         confirmed_words = self.hypothesis.flush()
 
+        # ⭐ DETECÇÃO DE PAUSA: Verificar se devemos forçar confirmação
+        is_sentence_end = False
+        if self.pause_detected_flag:
+            # Pausa foi detectada - verificar se é fim de frase
+            is_sentence_end = self._check_sentence_end(result.text)
+
+            if is_sentence_end:
+                logger.info(f"🔚 Fim de frase detectado após pausa ('{result.text[-20:] if len(result.text) > 20 else result.text}')")
+
+                # Se não confirmou palavras pelo LocalAgreement, forçar confirmação de TUDO
+                if not confirmed_words:
+                    logger.info("Forçando confirmação de todo buffer devido à pausa")
+                    # Usar todas as palavras como confirmadas
+                    confirmed_words = words_timestamped
+
+                # Auto-punctuate se configurado E sem pontuação final
+                if self.config.auto_punctuate_on_pause:
+                    last_word = confirmed_words[-1] if confirmed_words else None
+                    if last_word and not last_word[2].rstrip().endswith((".", "!", "?", "...")):
+                        # Adicionar ponto ao final da última palavra
+                        word_text_with_period = last_word[2].rstrip() + "."
+                        confirmed_words[-1] = (last_word[0], last_word[1], word_text_with_period)
+                        logger.debug("Adicionado '.' ao final do texto")
+            else:
+                logger.info(f"Pausa detectada mas texto continua (reticências ou vírgula)")
+
+            # Limpar flag
+            self.pause_detected_flag = False
+
         if confirmed_words:
             # ✅ TEXTO CONFIRMADO!
             # NOTE: Whisper words já incluem espaços (ex: ' olá', ' tudo')
@@ -242,14 +296,26 @@ class StreamingBuffer:
             # Adicionar ao histórico de palavras confirmadas
             self.commited_words.extend(confirmed_words)
 
-            # ⭐ Trim conservador: apenas se buffer > threshold
-            buffer_dur = len(self.audio_buffer) / DEFAULT_SAMPLE_RATE
-            if buffer_dur > self.config.buffer_trimming_sec:
-                logger.debug(
-                    f"Buffer grande ({buffer_dur:.2f}s > {self.config.buffer_trimming_sec}s), "
-                    f"fazendo trim"
-                )
-                await self._trim_buffer_conservative()
+            # ⭐ Se for fim de frase (pausa), limpar buffer completamente
+            if is_sentence_end:
+                logger.info("Limpando buffer devido a fim de frase")
+                # Limpar áudio
+                removed_duration = len(self.audio_buffer) / DEFAULT_SAMPLE_RATE
+                self.buffer_time_offset += removed_duration
+                self.total_duration += removed_duration
+                self.audio_buffer = np.array([], dtype=np.float32)
+                # Limpar HypothesisBuffer
+                self.hypothesis.reset()
+                logger.debug(f"Buffer limpo: offset={self.buffer_time_offset:.2f}s")
+            else:
+                # ⭐ Trim conservador normal: apenas se buffer > threshold
+                buffer_dur = len(self.audio_buffer) / DEFAULT_SAMPLE_RATE
+                if buffer_dur > self.config.buffer_trimming_sec:
+                    logger.debug(
+                        f"Buffer grande ({buffer_dur:.2f}s > {self.config.buffer_trimming_sec}s), "
+                        f"fazendo trim"
+                    )
+                    await self._trim_buffer_conservative()
 
             # Retornar resultado FINAL (apenas texto novo confirmado!)
             return TranscriptionResult(
@@ -260,6 +326,7 @@ class StreamingBuffer:
                 timestamp=datetime.now(),
                 segments=result.segments,  # Manter segmentos originais
                 words=result.words,
+                is_sentence_end=is_sentence_end,  # ⭐ Flag de fim de frase
             )
         else:
             # ⏳ TEXTO PARCIAL (ainda não estável)
@@ -274,6 +341,45 @@ class StreamingBuffer:
                 segments=result.segments,
                 words=result.words,
             )
+
+    def _check_sentence_end(self, text: str) -> bool:
+        """
+        Verifica se texto termina com pontuação de fim de frase
+
+        Usado para detecção inteligente de pausa:
+        - '.' ou '!' ou '?' → FIM de frase
+        - '...' ou ',' → NÃO é fim (continua)
+        - Sem pontuação → Presumir FIM
+
+        Args:
+            text: Texto a verificar
+
+        Returns:
+            True se for fim de frase, False se continuar
+        """
+        text = text.strip()
+        if not text:
+            return False
+
+        # Verificar pontuação final
+        if text.endswith("..."):
+            # Reticências = NÃO é fim (pensamento contínuo)
+            logger.debug(f"Texto termina com '...' → NÃO é fim de frase")
+            return False
+
+        if text.endswith(","):
+            # Vírgula = NÃO é fim
+            logger.debug(f"Texto termina com ',' → NÃO é fim de frase")
+            return False
+
+        if text.endswith((".", "!", "?")):
+            # Pontuação final = FIM de frase
+            logger.debug(f"Texto termina com '{text[-1]}' → É fim de frase")
+            return True
+
+        # Sem pontuação = Presumir FIM (vamos adicionar '.')
+        logger.debug(f"Texto sem pontuação final → Presumir fim de frase")
+        return True
 
     async def _trim_buffer_conservative(self):
         """
@@ -366,6 +472,9 @@ class StreamingBuffer:
         self.buffer_time_offset = 0.0
         self.total_duration = 0.0
         self.chunk_count = 0
+        # Reset detecção de pausa
+        self.last_audio_time = 0.0
+        self.pause_detected_flag = False
         logger.info("StreamingBuffer resetado")
 
     def get_stats(self) -> dict:

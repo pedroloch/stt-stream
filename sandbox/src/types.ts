@@ -34,6 +34,7 @@ export interface TranscriptionMessage extends WebSocketMessage {
   confidence: number;
   timestamp: string;
   segments?: TranscriptionSegment[];
+  is_sentence_end?: boolean; // ⭐ Flag de fim de frase (detecção de pausa)
 }
 
 /**

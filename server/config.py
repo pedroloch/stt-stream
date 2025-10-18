@@ -39,6 +39,10 @@ class WhisperConfig:
     buffer_trimming: BufferTrimming | str = BufferTrimming.SEGMENT
     buffer_trimming_sec: float = 10.0  # ⭐ NOVO: Threshold para trimming conservador
     max_buffer_size: float = 20.0  # ⭐ NOVO: Limite máximo do buffer (força trim se exceder)
+    # Detecção de pausa (fim de frase)
+    pause_detection_enabled: bool = True  # ⭐ Detectar pausas longas como fim de frase
+    pause_threshold_sec: float = 2.5  # ⭐ Pausa > 2.5s = possível fim de frase
+    auto_punctuate_on_pause: bool = True  # ⭐ Adicionar '.' se sem pontuação
     beam_size: int = 1
     best_of: int = 1
     temperature: float = 0.0

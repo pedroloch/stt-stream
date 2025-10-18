@@ -71,6 +71,19 @@ whisper:
   # Se exceder, força trim para evitar OOM e lentidão
   max_buffer_size: 10.0
 
+  # ⭐ EXPERIMENTAL: Detecção de Pausa (branch feature/pause-detection)
+  # Detecta pausas longas e força confirmação de texto
+  # Útil para separar frases naturalmente em conversação
+  pause_detection_enabled: true
+
+  # Tempo de pausa (gap entre chunks) que indica fim de frase
+  # 2-3 segundos é balanceado para conversa natural
+  pause_threshold_sec: 2.5
+
+  # Adicionar ponto final automático se texto não termina com pontuação
+  # Apenas se pausa for detectada E texto não terminar com ., !, ?, ...
+  auto_punctuate_on_pause: true
+
   # Beam size para decodificação
   # Maior = mais preciso mas mais lento (1-5)
   beam_size: 1

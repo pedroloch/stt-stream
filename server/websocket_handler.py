@@ -78,6 +78,10 @@ class WebSocketHandler:
             buffer_trimming_sec=self.config.whisper.buffer_trimming_sec,
             max_buffer_size=self.config.whisper.max_buffer_size,
             agreement_threshold=2,  # Deprecated mas mantido por compatibilidade
+            # Detecção de pausa
+            pause_detection_enabled=self.config.whisper.pause_detection_enabled,
+            pause_threshold_sec=self.config.whisper.pause_threshold_sec,
+            auto_punctuate_on_pause=self.config.whisper.auto_punctuate_on_pause,
         )
 
         self.logger.info(
@@ -85,7 +89,8 @@ class WebSocketHandler:
             f"min_chunk={buffer_config.min_chunk_size}s, "
             f"buffer_trimming={buffer_config.buffer_trimming}, "
             f"buffer_trimming_sec={buffer_config.buffer_trimming_sec}s, "
-            f"max_buffer_size={buffer_config.max_buffer_size}s"
+            f"max_buffer_size={buffer_config.max_buffer_size}s, "
+            f"pause_detection={'ON' if buffer_config.pause_detection_enabled else 'OFF'}"
         )
 
         self.streaming_buffers[client_id] = StreamingBuffer(
@@ -186,6 +191,10 @@ class WebSocketHandler:
                     buffer_trimming_sec=self.config.whisper.buffer_trimming_sec,
                     max_buffer_size=self.config.whisper.max_buffer_size,
                     agreement_threshold=2,  # Deprecated
+                    # Detecção de pausa
+                    pause_detection_enabled=self.config.whisper.pause_detection_enabled,
+                    pause_threshold_sec=self.config.whisper.pause_threshold_sec,
+                    auto_punctuate_on_pause=self.config.whisper.auto_punctuate_on_pause,
                 )
                 buffer = StreamingBuffer(
                     backend=self.processor.backend,

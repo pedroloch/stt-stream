@@ -394,7 +394,7 @@ class WhisperStreamClient {
   }
 
   private handleTranscription(message: TranscriptionMessage) {
-    const { text, is_final } = message;
+    const { text, is_final, is_sentence_end } = message;
 
     // Filtro: ignorar se vazio ou muito curto
     if (!text || text.trim().length < 2) {
@@ -412,15 +412,21 @@ class WhisperStreamClient {
       // ✅ TRANSCRIÇÃO FINAL (confirmada pelo LocalAgreement)
       // LocalAgreement envia apenas o NOVO texto confirmado (incremental)
 
-      this.logDebug(`Received FINAL: "${text.trim()}"`);
+      this.logDebug(`Received FINAL: "${text.trim()}" (sentence_end=${is_sentence_end})`);
       this.logDebug(`Current confirmed: "${this.confirmedText}"`);
 
       // Limpar linha parcial antes de adicionar final
       const clearWidth = Math.min(process.stdout.columns || 120, 150);
       process.stdout.write("\r" + " ".repeat(clearWidth) + "\r");
 
-      // Acumular texto confirmado
-      this.confirmedText += (this.confirmedText ? " " : "") + text.trim();
+      // ⭐ Acumular texto confirmado com espaço duplo se for fim de frase
+      if (this.confirmedText) {
+        // Espaço duplo se fim de frase anterior, simples senão
+        const separator = is_sentence_end ? "  " : " ";
+        this.confirmedText += separator + text.trim();
+      } else {
+        this.confirmedText = text.trim();
+      }
 
       this.logDebug(`New confirmed total: "${this.confirmedText}"`);
 
