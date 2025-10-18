@@ -4,16 +4,80 @@ Instruções claras para instalar dependências em diferentes ambientes.
 
 ## TL;DR - Quick Install
 
-### 🚀 RunPod (CUDA GPU)
-```bash
-chmod +x scripts/install-runpod.sh
-./scripts/install-runpod.sh
-```
-
-### 🍎 Mac (Apple Silicon ou Intel)
+### 🍎 Mac (Desenvolvimento Local)
 ```bash
 chmod +x scripts/install-mac.sh
 ./scripts/install-mac.sh
+```
+
+**Inclui:**
+- ✅ faster-whisper (CPU)
+- ✅ MLX Whisper (se Apple Silicon M1/M2/M3)
+- ✅ Pyannote diarization (CPU/MPS)
+
+---
+
+### 🚀 RunPod (CUDA GPU) - BATCH API ⭐ RECOMENDADO
+
+**Setup completo**: clone + deps + config automaticamente
+
+```bash
+# Via URL (one-liner)
+bash <(curl -s https://raw.githubusercontent.com/pedroloch/stt-stream/main/scripts/runpod_setup.sh)
+
+# Ou se já clonou o repo:
+cd /workspace/stt-stream
+bash scripts/runpod_setup.sh  # Default: sortformer
+```
+
+**Inclui:**
+- ✅ faster-whisper (CUDA)
+- ✅ **Sortformer** diarization (SOTA 2025, 4 speakers)
+- ✅ Pyannote diarization (backup)
+- ✅ Configuração automática do server-config.yaml
+
+---
+
+### 🚀 RunPod (CUDA GPU) - Streaming com WhisperX (Alternativa)
+
+**Para timestamps ultra-precisos (±50ms)**
+
+```bash
+# Via URL
+bash <(curl -s https://raw.githubusercontent.com/pedroloch/stt-stream/main/scripts/runpod_setup.sh) whisperx
+
+# Ou se já clonou:
+cd /workspace/stt-stream
+bash scripts/runpod_setup.sh whisperx
+```
+
+**Inclui:**
+- ✅ faster-whisper (CUDA)
+- ✅ **WhisperX v3.3.2** (timestamps ±50ms, 4x melhor)
+- ✅ Pyannote diarization (integrado no WhisperX)
+- ⚠️ **REMOVE Sortformer** (conflito numpy)
+
+---
+
+## ⚠️ RunPod: Sortformer vs WhisperX - Você DEVE escolher
+
+**Eles são MUTUAMENTE EXCLUSIVOS** (conflito numpy)
+
+| Feature | Sortformer ⭐ | WhisperX |
+|---------|--------------|----------|
+| **Uso recomendado** | **BATCH API (atual)** | Streaming (futuro) |
+| **Speakers simultâneos** | 4 fixos (SOTA 2025) | Auto-detect |
+| **Precisão timestamps** | ±200ms | ±50ms (4x melhor) |
+| **Performance** | Rápido | Mais lento |
+| **Conflito** | ⚠️ Com WhisperX | ⚠️ Com Sortformer |
+
+**Default:** Sortformer (melhor para seu uso BATCH API)
+
+**Para alternar:**
+```bash
+cd /workspace/stt-stream
+bash scripts/runpod_setup.sh sortformer  # Volta para Sortformer
+bash scripts/runpod_setup.sh whisperx    # Vai para WhisperX
 ```
 
 ---

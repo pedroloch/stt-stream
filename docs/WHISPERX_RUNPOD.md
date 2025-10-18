@@ -4,6 +4,21 @@ Deploy do Whisper Stream com **WhisperX** (diarization + word timestamps preciso
 
 ---
 
+> ## ⚠️ IMPORTANTE: Conflito com Sortformer
+>
+> WhisperX e Sortformer são **MUTUAMENTE EXCLUSIVOS** (conflito numpy).
+>
+> - **Este guia é para Streaming com WhisperX** (timestamps ±50ms)
+> - **Para BATCH API atual**, use Sortformer: veja [INSTALL.md](INSTALL.md)
+> - **Para alternar entre eles:**
+>   ```bash
+>   cd /workspace/stt-stream
+>   bash scripts/runpod_setup.sh sortformer  # BATCH API
+>   bash scripts/runpod_setup.sh whisperx    # Streaming
+>   ```
+
+---
+
 ## 🌟 O que é WhisperX?
 
 WhisperX é uma extensão do Whisper que adiciona:

@@ -4,16 +4,34 @@
 # Script para setup rápido de ambiente de desenvolvimento/teste no RunPod com GPU
 #
 # Uso:
-#   bash <(curl -s https://raw.githubusercontent.com/pedroloch/stt-stream/main/scripts/runpod_setup.sh)
+#   bash runpod_setup.sh [sortformer|whisperx]
 #
-# Ou:
-#   wget -O - https://raw.githubusercontent.com/pedroloch/stt-stream/main/scripts/runpod_setup.sh | bash
+# Exemplos:
+#   bash runpod_setup.sh              # Default: sortformer (BATCH API)
+#   bash runpod_setup.sh sortformer   # BATCH API + Sortformer SOTA
+#   bash runpod_setup.sh whisperx     # Streaming + WhisperX v3.3.2
+#
+# Via URL (one-liner):
+#   bash <(curl -s https://raw.githubusercontent.com/pedroloch/stt-stream/main/scripts/runpod_setup.sh)
+#   bash <(curl -s https://raw.githubusercontent.com/pedroloch/stt-stream/main/scripts/runpod_setup.sh) whisperx
 
 set -e  # Exit on error
 
+# Parse argumentos
+SETUP_TYPE="${1:-sortformer}"  # Default: sortformer
+
+if [[ "$SETUP_TYPE" != "sortformer" && "$SETUP_TYPE" != "whisperx" ]]; then
+    echo "❌ Uso: bash runpod_setup.sh [sortformer|whisperx]"
+    echo ""
+    echo "Opções:"
+    echo "  sortformer  - BATCH API + Sortformer (SOTA 2025, 4 speakers) [DEFAULT]"
+    echo "  whisperx    - Streaming + WhisperX v3.3.2 (timestamps ±50ms)"
+    exit 1
+fi
+
 echo "=========================================="
 echo "🚀 Whisper Stream - RunPod GPU Setup"
-echo "   (Ambiente de Desenvolvimento)"
+echo "   Setup: $SETUP_TYPE"
 echo "=========================================="
 
 # 1. Verificar CUDA
@@ -59,8 +77,14 @@ fi
 # 4. Instalar dependências
 echo ""
 echo "📦 Instalando dependências (pode demorar 5-10 min)..."
-echo "   Instalando: Base + CUDA + Sortformer + Pyannote + VAD"
-poetry install --extras "all"
+
+if [[ "$SETUP_TYPE" == "sortformer" ]]; then
+    echo "   Instalando: Base + CUDA + Sortformer + Pyannote + VAD"
+    poetry install --extras "cuda vad diarization-all"
+else
+    echo "   Instalando: Base + CUDA + VAD (WhisperX será instalado depois)"
+    poetry install --extras "cuda vad"
+fi
 
 # 4.5. Instalar cuDNN para ctranslate2 (faster-whisper)
 echo ""
@@ -160,39 +184,31 @@ print('')
 print('✅ Imports base OK! Backends opcionais podem não estar instalados.')
 "
 
-# 6.5. Perguntar sobre WhisperX (opcional - conflita com NeMo)
-echo ""
-echo "=========================================="
-echo "⚠️  WhisperX vs Sortformer"
-echo "=========================================="
-echo ""
-echo "WhisperX e Sortformer são MUTUAMENTE EXCLUSIVOS (conflito numpy):"
-echo "  - WhisperX v3.3.2: Backend com diarization pyannote integrada (numpy 1.x)"
-echo "  - Sortformer: Diarization SOTA 4 speakers (numpy 1.x, JÁ INSTALADO)"
-echo "  - WhisperX 3.3.3+: Requer numpy 2.0 (incompatível com NeMo)"
-echo ""
-echo "Você instalou Sortformer. Se quiser WhisperX v3.3.2, precisa DESINSTALAR NeMo:"
-echo "  poetry run pip uninstall nemo-toolkit -y"
-echo "  poetry run pip install git+https://github.com/m-bain/whisperx.git@v3.3.2"
-echo ""
-echo "❓ Deseja instalar WhisperX v3.3.2 AGORA (vai desinstalar NeMo/Sortformer)? [y/N]"
-read -t 10 -r INSTALL_WHISPERX || INSTALL_WHISPERX="n"
-
-if [[ "$INSTALL_WHISPERX" =~ ^[Yy]$ ]]; then
+# 6.5. Instalar WhisperX se necessário (baseado em argumento)
+if [[ "$SETUP_TYPE" == "whisperx" ]]; then
     echo ""
-    echo "📦 Desinstalando NeMo e instalando WhisperX v3.3.2..."
-    poetry run pip uninstall nemo-toolkit -y
-    poetry run pip install git+https://github.com/m-bain/whisperx.git@v3.3.2
-    echo "✅ WhisperX v3.3.2 instalado (Sortformer removido)"
+    echo "=========================================="
+    echo "📦 Instalando WhisperX v3.3.2"
+    echo "=========================================="
+    echo ""
+    echo "WhisperX e Sortformer são MUTUAMENTE EXCLUSIVOS (conflito numpy)"
+    echo "  - Desinstalando NeMo (se instalado)..."
+    echo "  - Instalando WhisperX v3.3.2 (última versão com numpy 1.x)"
+    echo ""
 
-    # Atualizar config para usar whisperx
+    poetry run pip uninstall nemo-toolkit -y 2>/dev/null || true
+    poetry run pip install git+https://github.com/m-bain/whisperx.git@v3.3.2
+
+    echo "✅ WhisperX v3.3.2 instalado"
+
+    # Atualizar config para não usar sortformer
     if [ -f "server-config.yaml" ]; then
         sed -i 's/backend: "sortformer"/backend: "none"/' server-config.yaml
-        echo "   server-config.yaml atualizado (diarization desabilitado)"
-        echo "   Para usar diarization do WhisperX, configure backend: whisperx"
+        echo "   server-config.yaml atualizado (diarization via WhisperX)"
     fi
 else
-    echo "⏭️  Mantendo Sortformer (WhisperX não instalado)"
+    echo ""
+    echo "✅ Sortformer instalado (SOTA 2025, 4 speakers)"
 fi
 
 # 7. Informações
@@ -233,10 +249,19 @@ echo ""
 echo "🧪 Testar health:"
 echo "   curl https://<pod-id>-9090.proxy.runpod.net/health"
 echo ""
-echo "⚙️  Configuração atual:"
+echo "⚙️  Configuração instalada:"
+echo "   Setup: $SETUP_TYPE"
 echo "   Backend: faster-whisper"
 echo "   Modelo: distil-large-v3 (6x mais rápido!)"
-echo "   Diarization: Sortformer (4 speakers)"
+if [[ "$SETUP_TYPE" == "sortformer" ]]; then
+    echo "   Diarization: Sortformer (4 speakers) + Pyannote"
+else
+    echo "   Diarization: Pyannote (via WhisperX)"
+fi
 echo "   Device: CUDA (GPU)"
+echo ""
+echo "🔄 Para alternar entre setups:"
+echo "   bash scripts/runpod_setup.sh sortformer"
+echo "   bash scripts/runpod_setup.sh whisperx"
 echo ""
 echo "=========================================="
