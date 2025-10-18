@@ -346,18 +346,31 @@ async function testBatchAPI(options: TranscribeOptions) {
     console.log(chalk.green(`✅ Request completo em ${elapsedSec.toFixed(2)}s`));
     console.log();
 
-    // Salvar resultado completo em arquivo JSON
-    const timestamp = Date.now();
-    const outputFile = `output-${timestamp}.json`;
+    // Criar diretório de output organizado
+    const now = new Date();
+    const dateStr = now.toISOString().split('T')[0]; // 2025-10-18
+    const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '-'); // 18-05-30
+
+    const backend = options.model || result.backend_info?.backend_type || "unknown";
+    const modelSize = options.modelSize || "base";
+
+    // Estrutura: outputs/YYYY-MM-DD/HH-MM-SS_backend_modelsize/
+    const outputDir = `outputs/${dateStr}/${timeStr}_${backend}_${modelSize}`;
+
+    // Criar diretório se não existir
+    await Bun.write(`${outputDir}/.gitkeep`, ""); // Cria dir
+
+    // Salvar JSON
+    const outputFile = `${outputDir}/transcription.json`;
     await Bun.write(outputFile, JSON.stringify(result, null, 2));
-    console.log(chalk.gray(`💾 JSON salvo em: ${outputFile}`));
+    console.log(chalk.gray(`💾 JSON: ${outputFile}`));
 
     // Salvar Markdown (se tiver segmentos)
     if (result.segments && result.segments.length > 0) {
-      const mdFile = `output-${timestamp}.md`;
+      const mdFile = `${outputDir}/transcription.md`;
       const markdown = formatMarkdown(result, options);
       await Bun.write(mdFile, markdown);
-      console.log(chalk.gray(`📄 Markdown salvo em: ${mdFile}`));
+      console.log(chalk.gray(`📄 Markdown: ${mdFile}`));
 
       // Preview do Markdown (primeiras linhas)
       const previewLines = markdown.split("\n").slice(0, 25);

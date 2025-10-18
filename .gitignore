@@ -72,6 +72,11 @@ htmlcov/
 .pytest_cache/
 .tox/
 
+# Test outputs
+sandbox/outputs/
+sandbox/output-*.json
+sandbox/output-*.md
+
 # Build
 dist/
 *.bundle.js
