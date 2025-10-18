@@ -137,29 +137,42 @@ poetry install --extras "cuda diarization-sortformer"
 
 ### 4. RunPod GPU - WhisperX (Backend Alternativo)
 
-⚠️ **ATENÇÃO:** WhisperX requer numpy>=2.0, incompatível com NeMo (numpy<2.0).
-**WhisperX e Sortformer são mutuamente exclusivos!**
+⚠️ **ATENÇÃO:** WhisperX e NeMo são **MUTUAMENTE EXCLUSIVOS**!
+
+**Conflito de versão numpy:**
+- WhisperX 3.3.3+ requer numpy >= 2.0
+- NeMo 2.2.x requer numpy < 2.0
+- **Solução:** Use WhisperX v3.3.2 (última versão com numpy 1.x)
 
 **Instalação manual (após `poetry install --extras "cuda"`):**
 
 ```bash
 poetry install --extras "cuda"
-poetry run pip install git+https://github.com/m-bain/whisperx.git
+
+# Desinstalar NeMo se estiver instalado
+poetry run pip uninstall nemo-toolkit -y
+
+# Instalar WhisperX v3.3.2 (compatível com numpy 1.x)
+poetry run pip install git+https://github.com/m-bain/whisperx.git@v3.3.2
 ```
 
 **Inclui:**
 - faster-whisper (fallback)
 - torch + torchaudio
 - nvidia-cudnn-cu12
-- whisperx (manual, diarization pyannote integrada)
+- whisperx v3.3.2 (manual, diarization pyannote integrada)
 
-**NOTA:** Não instale WhisperX se você precisa de Sortformer!
+**Para voltar ao Sortformer:**
+```bash
+poetry run pip uninstall whisperx -y
+poetry install --extras "diarization-sortformer"
+```
 
 ---
 
-### 5. RunPod GPU - Completo (Máxima Funcionalidade)
+### 5. RunPod GPU - Completo (Sortformer + Pyannote)
 
-Todos backends e features:
+Todos backends exceto WhisperX (que é mutuamente exclusivo):
 
 ```bash
 poetry install --extras "all"
@@ -169,9 +182,10 @@ poetry install --extras "all"
 - faster-whisper (GPU)
 - torch + torchaudio
 - nvidia-cudnn-cu12
-- whisperx (git)
 - nemo-toolkit[asr] (Sortformer)
 - pyannote-audio
+
+**NOTA:** `--extras "all"` NÃO inclui WhisperX devido ao conflito numpy. Para usar WhisperX, siga as instruções da seção 4 acima.
 
 ---
 
@@ -274,14 +288,24 @@ make check-deps
 
 ### Problema: `ModuleNotFoundError: No module named 'whisperx'`
 
-**Solução:** WhisperX deve ser instalado manualmente (conflito numpy com NeMo).
+**Causa:** WhisperX e NeMo são mutuamente exclusivos (conflito numpy).
+
+**Solução:** Instale WhisperX v3.3.2 manualmente (última versão com numpy 1.x):
 
 ```bash
+# Desinstalar NeMo se estiver instalado
+poetry run pip uninstall nemo-toolkit -y
+
+# Instalar WhisperX v3.3.2
 poetry install --extras "cuda"
-poetry run pip install git+https://github.com/m-bain/whisperx.git
+poetry run pip install git+https://github.com/m-bain/whisperx.git@v3.3.2
 ```
 
-**ATENÇÃO:** Não instale junto com `nemo-toolkit` (Sortformer)!
+**Para voltar ao Sortformer:**
+```bash
+poetry run pip uninstall whisperx -y
+poetry install --extras "diarization-sortformer"
+```
 
 ---
 

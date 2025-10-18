@@ -167,28 +167,29 @@ echo "⚠️  WhisperX vs Sortformer"
 echo "=========================================="
 echo ""
 echo "WhisperX e Sortformer são MUTUAMENTE EXCLUSIVOS (conflito numpy):"
-echo "  - WhisperX: Backend com diarization pyannote integrada (numpy>=2.0)"
-echo "  - Sortformer: Diarization SOTA 4 speakers (numpy<2.0, JÁ INSTALADO)"
+echo "  - WhisperX v3.3.2: Backend com diarization pyannote integrada (numpy 1.x)"
+echo "  - Sortformer: Diarization SOTA 4 speakers (numpy 1.x, JÁ INSTALADO)"
+echo "  - WhisperX 3.3.3+: Requer numpy 2.0 (incompatível com NeMo)"
 echo ""
-echo "Você instalou Sortformer. Se quiser WhisperX, precisa DESINSTALAR NeMo:"
+echo "Você instalou Sortformer. Se quiser WhisperX v3.3.2, precisa DESINSTALAR NeMo:"
 echo "  poetry run pip uninstall nemo-toolkit -y"
-echo "  poetry run pip install git+https://github.com/m-bain/whisperx.git"
+echo "  poetry run pip install git+https://github.com/m-bain/whisperx.git@v3.3.2"
 echo ""
-echo "❓ Deseja instalar WhisperX AGORA (vai desinstalar NeMo/Sortformer)? [y/N]"
+echo "❓ Deseja instalar WhisperX v3.3.2 AGORA (vai desinstalar NeMo/Sortformer)? [y/N]"
 read -t 10 -r INSTALL_WHISPERX || INSTALL_WHISPERX="n"
 
 if [[ "$INSTALL_WHISPERX" =~ ^[Yy]$ ]]; then
     echo ""
-    echo "📦 Desinstalando NeMo e instalando WhisperX..."
+    echo "📦 Desinstalando NeMo e instalando WhisperX v3.3.2..."
     poetry run pip uninstall nemo-toolkit -y
-    poetry run pip install git+https://github.com/m-bain/whisperx.git
-    echo "✅ WhisperX instalado (Sortformer removido)"
+    poetry run pip install git+https://github.com/m-bain/whisperx.git@v3.3.2
+    echo "✅ WhisperX v3.3.2 instalado (Sortformer removido)"
 
     # Atualizar config para usar whisperx
     if [ -f "server-config.yaml" ]; then
         sed -i 's/backend: "sortformer"/backend: "none"/' server-config.yaml
         echo "   server-config.yaml atualizado (diarization desabilitado)"
-        echo "   Para usar diarization do WhisperX, configure manualmente"
+        echo "   Para usar diarization do WhisperX, configure backend: whisperx"
     fi
 else
     echo "⏭️  Mantendo Sortformer (WhisperX não instalado)"

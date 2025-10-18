@@ -24,10 +24,18 @@ torchaudio = {version = "^2.6.0", optional = true}  # VAD (Silero)
 # cuDNN para faster-whisper com CUDA (Linux GPU)
 nvidia-cudnn-cu12 = {version = "^9.1.0", optional = true, markers = "sys_platform == 'linux'"}  # cuDNN for CUDA 12.x
 
-# NOTA: WhisperX removido devido a conflito de numpy
-# WhisperX requer numpy>=2.0, mas NeMo requer numpy<2.0
-# Para instalar WhisperX: poetry run pip install git+https://github.com/m-bain/whisperx.git
-# ATENÇÃO: WhisperX e nemo-toolkit são mutuamente exclusivos!
+# NOTA: WhisperX e NeMo são MUTUAMENTE EXCLUSIVOS (conflito numpy)
+# - WhisperX 3.3.3+ requer numpy>=2.0, mas NeMo 2.2.x requer numpy<2.0
+# - WhisperX 3.3.2 e anteriores: difícil instalar via Poetry (git dependencies)
+#
+# SOLUÇÃO: Instalar WhisperX manualmente quando necessário
+# Para instalar WhisperX (desinstala NeMo):
+#   poetry run pip uninstall nemo-toolkit -y
+#   poetry run pip install git+https://github.com/m-bain/whisperx.git@v3.3.2
+#
+# Para instalar NeMo (desinstala WhisperX):
+#   poetry run pip uninstall whisperx -y
+#   poetry install --extras "diarization-sortformer"
 
 # Diarization (speaker identification) - opcionais
 nemo-toolkit = {version = "^2.2.0", optional = true, extras = ["asr"]}  # Sortformer backend
@@ -37,10 +45,11 @@ pyannote-audio = {version = "^3.3.0", optional = true}  # Pyannote backend
 mlx = ["mlx-whisper"]
 cuda = ["torch", "torchaudio", "nvidia-cudnn-cu12"]
 vad = ["torch", "torchaudio"]
+whisperx = ["torch", "torchaudio", "nvidia-cudnn-cu12", "whisperx"]
 diarization-sortformer = ["torch", "torchaudio", "nvidia-cudnn-cu12", "nemo-toolkit"]
 diarization-pyannote = ["torch", "torchaudio", "nvidia-cudnn-cu12", "pyannote-audio"]
 diarization-all = ["torch", "torchaudio", "nvidia-cudnn-cu12", "nemo-toolkit", "pyannote-audio"]
-all = ["torch", "torchaudio", "nvidia-cudnn-cu12", "nemo-toolkit", "pyannote-audio"]
+all = ["torch", "torchaudio", "nvidia-cudnn-cu12", "whisperx", "nemo-toolkit", "pyannote-audio"]
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.0"  # Latest stable

@@ -52,9 +52,11 @@ def check_dependencies() -> Dict[str, str]:
 
     try:
         import whisperx
-        deps['whisperx'] = '✅ (git)'
+        # Try to get version
+        version = getattr(whisperx, '__version__', 'unknown')
+        deps['whisperx'] = f'✅ v{version}'
     except ImportError:
-        deps['whisperx'] = '⚠️  opcional (Linux CUDA apenas)'
+        deps['whisperx'] = '⚠️  opcional (Linux CUDA, mutuamente exclusivo com NeMo)'
 
     try:
         import mlx_whisper
@@ -147,17 +149,28 @@ def print_report(deps: Dict[str, str]) -> None:
 
         # Check optional
         optional_installed = []
+        whisperx_installed = '✅' in deps.get('whisperx', '')
+        nemo_installed = '✅' in deps.get('nemo-toolkit', '')
+
         if '✅' in deps.get('torch', ''):
             optional_installed.append('CUDA/GPU')
-        if '✅' in deps.get('whisperx', ''):
+        if whisperx_installed:
             optional_installed.append('WhisperX')
-        if '✅' in deps.get('nemo-toolkit', ''):
+        if nemo_installed:
             optional_installed.append('Sortformer')
         if '✅' in deps.get('pyannote-audio', ''):
             optional_installed.append('Pyannote')
 
         if optional_installed:
             print(f"⭐ Extras instalados: {', '.join(optional_installed)}")
+
+        # Check for mutual exclusivity conflict
+        if whisperx_installed and nemo_installed:
+            print()
+            print("⚠️  ATENÇÃO: WhisperX e NeMo (Sortformer) estão AMBOS instalados!")
+            print("   Isso pode causar conflitos de numpy. Recomendado ter apenas um:")
+            print("   - Para remover WhisperX: poetry run pip uninstall whisperx -y")
+            print("   - Para remover NeMo: poetry run pip uninstall nemo-toolkit -y")
 
     print()
 
