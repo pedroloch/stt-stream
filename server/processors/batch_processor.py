@@ -246,13 +246,19 @@ class BatchProcessor:
 
         # Criar backend
         try:
-            backend = BackendRegistry.create(
-                backend_name,
-                {
-                    "model": request.model_size,
-                    "language": request.language,
-                }
-            )
+            # Preparar kwargs do backend
+            backend_kwargs = {
+                "model": request.model_size,
+                "language": request.language,
+            }
+
+            # Adicionar HF token se disponível (necessário para WhisperX diarization)
+            hf_token = os.getenv("HUGGING_FACE_HUB_TOKEN")
+            if hf_token:
+                backend_kwargs["hf_token"] = hf_token
+                self.logger.debug(f"HF token configurado para backend {backend_name}")
+
+            backend = BackendRegistry.create(backend_name, backend_kwargs)
 
             # Inicializar
             await backend.initialize()
