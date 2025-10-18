@@ -20,8 +20,8 @@ import numpy as np
 
 from ..backends.base import WhisperBackend
 from ..constants import DEFAULT_SAMPLE_RATE
-from ..models.result import TranscriptionResult
-from .hypothesis_buffer import HypothesisBuffer, WordWithTimestamp
+from ..models.result import TranscriptionResult, Word
+from .hypothesis_buffer import HypothesisBuffer
 
 logger = logging.getLogger(__name__)
 
@@ -80,12 +80,15 @@ class StreamingBuffer:
         self.chunk_count = 0
 
         # Lista de palavras confirmadas (para prompt/context)
-        # Formato: [(start, end, word), ...]
-        self.commited_words: list[WordWithTimestamp] = []
+        # Formato: lista de Word objects
+        self.commited_words: list[Word] = []
 
         # ⭐ Detecção de pausa: tracking temporal
         self.last_audio_time: float = 0.0  # Timestamp do último chunk recebido
         self.pause_detected_flag: bool = False  # Flag de pausa detectada
+
+        # ⭐ NOVO: Stall detection - tracking de último commit
+        self.time_of_last_commit: float = 0.0  # Timestamp absoluto do último commit
 
         logger.info(
             f"StreamingBuffer inicializado: "
@@ -162,7 +165,7 @@ class StreamingBuffer:
         # (palavras confirmadas com end_time <= buffer_time_offset)
         scrolled_away_words = [
             word for word in self.commited_words
-            if word[1] <= self.buffer_time_offset
+            if word.end <= self.buffer_time_offset
         ]
 
         if not scrolled_away_words:
@@ -179,7 +182,7 @@ class StreamingBuffer:
             return ""
 
         # Concatenar texto (words já incluem espaços, então concatenar sem espaço adicional)
-        full_text = "".join(w[2] for w in scrolled_away_words).strip()
+        full_text = "".join(w.word for w in scrolled_away_words).strip()
 
         # Últimas 200 chars apenas (limite do Whisper)
         prompt = full_text[-200:] if len(full_text) > 200 else full_text
@@ -241,17 +244,43 @@ class StreamingBuffer:
             # Fallback: retornar transcrição sem LocalAgreement
             return result
 
-        # Converter para formato HypothesisBuffer: [(start, end, text), ...]
-        words_timestamped = [
-            (w.start, w.end, w.word)
-            for w in result.words
-        ]
+        logger.debug(f"Extraídas {len(result.words)} palavras com timestamps")
 
-        logger.debug(f"Extraídas {len(words_timestamped)} palavras com timestamps")
-
-        # ⭐ HypothesisBuffer: insert + flush
-        self.hypothesis.insert(words_timestamped, self.buffer_time_offset)
+        # ⭐ HypothesisBuffer: insert + flush (passa Word objects diretamente!)
+        self.hypothesis.insert(result.words, self.buffer_time_offset)
         confirmed_words = self.hypothesis.flush()
+
+        # ⭐ STALL DETECTION: Detectar se buffer travou (sem commits por muito tempo)
+        current_buffer_end_time = self.buffer_time_offset + (len(self.audio_buffer) / DEFAULT_SAMPLE_RATE)
+        buffer_duration = len(self.audio_buffer) / DEFAULT_SAMPLE_RATE
+
+        if not confirmed_words and buffer_duration > self.config.buffer_trimming_sec:
+            # Não houve commits E buffer está grande
+            time_since_last_commit = current_buffer_end_time - self.time_of_last_commit
+
+            if time_since_last_commit > self.config.buffer_trimming_sec:
+                # STALL DETECTADO! Sem commits por muito tempo
+                logger.warning(
+                    f"⚠️ STALL DETECTADO: {time_since_last_commit:.1f}s sem commits "
+                    f"(buffer: {buffer_duration:.1f}s). Resetando buffer."
+                )
+
+                # Reset completo do buffer
+                removed_duration = len(self.audio_buffer) / DEFAULT_SAMPLE_RATE
+                self.buffer_time_offset += removed_duration
+                self.total_duration += removed_duration
+                self.audio_buffer = np.array([], dtype=np.float32)
+
+                # Reset do HypothesisBuffer
+                self.hypothesis.reset()
+
+                # Atualizar tempo de último commit (para evitar reset loops)
+                self.time_of_last_commit = current_buffer_end_time
+
+                logger.info(f"Buffer resetado: novo offset={self.buffer_time_offset:.2f}s")
+
+                # Retornar None (sem resultado neste ciclo)
+                return None
 
         # ⭐ DETECÇÃO DE PAUSA: Verificar se devemos forçar confirmação
         is_sentence_end = False
@@ -266,15 +295,24 @@ class StreamingBuffer:
                 if not confirmed_words:
                     logger.info("Forçando confirmação de todo buffer devido à pausa")
                     # Usar todas as palavras como confirmadas
-                    confirmed_words = words_timestamped
+                    confirmed_words = result.words
 
                 # Auto-punctuate se configurado E sem pontuação final
                 if self.config.auto_punctuate_on_pause:
                     last_word = confirmed_words[-1] if confirmed_words else None
-                    if last_word and not last_word[2].rstrip().endswith((".", "!", "?", "...")):
-                        # Adicionar ponto ao final da última palavra
-                        word_text_with_period = last_word[2].rstrip() + "."
-                        confirmed_words[-1] = (last_word[0], last_word[1], word_text_with_period)
+                    if last_word and not last_word.word.rstrip().endswith((".", "!", "?", "...")):
+                        # Criar nova palavra com pontuação
+                        from ..models.result import Word
+                        confirmed_words[-1] = Word(
+                            word=last_word.word.rstrip() + ".",
+                            start=last_word.start,
+                            end=last_word.end,
+                            probability=last_word.probability,
+                            is_filler=last_word.is_filler,
+                            is_punctuation=last_word.is_punctuation,
+                            speaker_id=last_word.speaker_id,
+                            language=last_word.language,
+                        )
                         logger.debug("Adicionado '.' ao final do texto")
             else:
                 logger.info(f"Pausa detectada mas texto continua (reticências ou vírgula)")
@@ -286,15 +324,18 @@ class StreamingBuffer:
             # ✅ TEXTO CONFIRMADO!
             # NOTE: Whisper words já incluem espaços (ex: ' olá', ' tudo')
             # Por isso concatenamos sem espaço adicional e depois strip()
-            confirmed_text = "".join(w[2] for w in confirmed_words).strip()
+            confirmed_text = "".join(w.word for w in confirmed_words).strip()
 
             logger.info(
                 f"✅ Confirmado ({len(confirmed_words)} palavras): '{confirmed_text}'"
             )
-            logger.debug(f"   Palavras: {[w[2] for w in confirmed_words]}")
+            logger.debug(f"   Palavras: {[w.word for w in confirmed_words]}")
 
             # Adicionar ao histórico de palavras confirmadas
             self.commited_words.extend(confirmed_words)
+
+            # ⭐ Atualizar tempo de último commit (para stall detection)
+            self.time_of_last_commit = confirmed_words[-1].end
 
             # ⭐ Se for fim de frase (pausa), limpar buffer completamente
             if is_sentence_end:
@@ -399,7 +440,7 @@ class StreamingBuffer:
 
         # Última palavra confirmada
         last_confirmed_word = self.commited_words[-1]
-        trim_time = last_confirmed_word[1]  # end time
+        trim_time = last_confirmed_word.end  # end time
 
         # Trim time RELATIVO ao buffer atual
         trim_time_relative = trim_time - self.buffer_time_offset
