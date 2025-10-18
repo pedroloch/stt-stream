@@ -13,6 +13,7 @@ from .audio import AudioConverter
 from .config import Config
 from .constants import DEFAULT_SAMPLE_RATE
 from .serializers import WebSocketSerializer
+from .streaming.buffer import BufferConfig, StreamingBuffer
 from .whisper_processor import WhisperProcessor
 
 
@@ -41,6 +42,9 @@ class WebSocketHandler:
         # Tracking de clientes conectados
         self.active_connections: set[web.WebSocketResponse] = set()
 
+        # Streaming buffers por cliente (client_id -> StreamingBuffer)
+        self.streaming_buffers: dict[int, StreamingBuffer] = {}
+
     async def handle_websocket(self, request: web.Request) -> web.WebSocketResponse:
         """
         Handle WebSocket connection
@@ -60,6 +64,23 @@ class WebSocketHandler:
 
         self.logger.info(f"✅ Cliente conectado: {client_id}")
         self.logger.info(f"Clientes ativos: {len(self.active_connections)}")
+
+        # Criar StreamingBuffer para este cliente
+        if not self.processor.backend:
+            self.logger.error("Backend não inicializado!")
+            await ws.close()
+            self.active_connections.remove(ws)
+            return ws
+
+        buffer_config = BufferConfig(
+            min_chunk_size=self.config.whisper.min_chunk_size,
+            agreement_threshold=2,  # n=2 concordâncias
+            buffer_trimming=self.config.whisper.buffer_trimming,
+        )
+        self.streaming_buffers[client_id] = StreamingBuffer(
+            backend=self.processor.backend,
+            config=buffer_config
+        )
 
         # Verificar limite de clientes
         if len(self.active_connections) > self.config.server.max_clients:
@@ -99,6 +120,11 @@ class WebSocketHandler:
             self.logger.error(f"Erro no handler [{client_id}]: {e}", exc_info=True)
 
         finally:
+            # Cleanup: remover buffer do cliente
+            if client_id in self.streaming_buffers:
+                self.streaming_buffers[client_id].reset()
+                del self.streaming_buffers[client_id]
+
             # Remover da lista de conexões ativas
             self.active_connections.discard(ws)
             self.logger.info(f"❌ Cliente desconectado: {client_id}")
@@ -113,7 +139,7 @@ class WebSocketHandler:
         client_id: int
     ) -> None:
         """
-        Processa áudio recebido
+        Processa áudio recebido com streaming inteligente
 
         Args:
             ws: WebSocket connection
@@ -136,22 +162,45 @@ class WebSocketHandler:
                     f"rms: {stats['rms']:.3f}"
                 )
 
-            # Processar com Whisper (retorna TranscriptionResult)
-            result = await self.processor.process_audio(audio_float)
+            # Obter buffer do cliente
+            buffer = self.streaming_buffers.get(client_id)
+            if not buffer:
+                if not self.processor.backend:
+                    raise RuntimeError("Backend não inicializado")
+
+                self.logger.warning(f"[{client_id}] Buffer não encontrado, criando novo")
+                buffer_config = BufferConfig(
+                    min_chunk_size=self.config.whisper.min_chunk_size,
+                    agreement_threshold=2,
+                    buffer_trimming=self.config.whisper.buffer_trimming,
+                )
+                buffer = StreamingBuffer(
+                    backend=self.processor.backend,
+                    config=buffer_config
+                )
+                self.streaming_buffers[client_id] = buffer
+
+            # Adicionar chunk ao buffer
+            await buffer.add_chunk(audio_float)
+
+            # Processar buffer (retorna parcial ou final)
+            result = await buffer.process()
 
             # Enviar resultado se houver texto
-            if result.text:
+            if result and result.text:
                 # Serializar para WebSocket
                 ws_message = WebSocketSerializer.serialize_transcription(result)
                 await ws.send_json(ws_message)
 
+                # Log diferente para parcial vs final
+                status = "✅ FINAL" if result.is_final else "⏳ PARCIAL"
                 self.logger.debug(
-                    f"[{client_id}] Transcrição: '{result.text[:50]}...' "
+                    f"[{client_id}] {status}: '{result.text[:50]}...' "
                     f"(conf: {result.confidence:.2f})"
                 )
 
         except Exception as e:
-            self.logger.error(f"Erro ao processar áudio [{client_id}]: {e}")
+            self.logger.error(f"Erro ao processar áudio [{client_id}]: {e}", exc_info=True)
             error_msg = WebSocketSerializer.serialize_error(
                 f"Erro ao processar áudio: {str(e)}",
                 code="PROCESSING_ERROR"
@@ -189,7 +238,11 @@ class WebSocketHandler:
                 await ws.send_json(info_msg)
 
             elif msg_type == "reset_context":
-                # Reset de contexto (futuro)
+                # Reset de contexto do buffer
+                if client_id in self.streaming_buffers:
+                    self.streaming_buffers[client_id].reset()
+                    self.logger.info(f"[{client_id}] Buffer resetado")
+
                 await ws.send_json({
                     "type": "ack",
                     "message": "Context reset"
@@ -247,7 +300,14 @@ class WebSocketHandler:
         Returns:
             Dicionário com estatísticas
         """
+        # Stats dos buffers
+        buffer_stats = {}
+        for client_id, buffer in self.streaming_buffers.items():
+            buffer_stats[client_id] = buffer.get_stats()
+
         return {
             "active_connections": len(self.active_connections),
             "max_clients": self.config.server.max_clients,
+            "streaming_buffers": len(self.streaming_buffers),
+            "buffer_stats": buffer_stats,
         }
