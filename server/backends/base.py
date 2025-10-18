@@ -41,7 +41,7 @@ class WhisperBackend(ABC):
         self,
         model: str = "base",
         language: str = "pt",
-        compute_type: str = "float16",
+        compute_type: str = "auto",
         **kwargs
     ):
         """
@@ -50,7 +50,8 @@ class WhisperBackend(ABC):
         Args:
             model: Modelo do Whisper (tiny, base, small, medium, large)
             language: Código do idioma (pt, en, es, etc)
-            compute_type: Tipo de computação (float16, int8, etc)
+            compute_type: Tipo de computação (auto, float16, int8, etc)
+                         "auto" detecta automaticamente baseado no device
             **kwargs: Argumentos adicionais específicos do backend
         """
         self.model = model

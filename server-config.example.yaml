@@ -23,7 +23,7 @@ server:
 whisper:
   # Modelo: tiny, base, small, medium, large, large-v3, large-v3-turbo
   # Modelos maiores = mais precisos mas mais lentos
-  model: "base"
+  model: "distil-large-v3"
 
   # Idioma (auto para detecção automática)
   # Exemplos: pt, en, es, fr, de, etc
@@ -43,7 +43,7 @@ whisper:
   # Options: float16, int8, int8_float16
   # float16 = melhor qualidade, mais memória
   # int8 = mais rápido, menos memória, qualidade ligeiramente menor
-  compute_type: "float16"
+  compute_type: "auto"
 
   # VAD (Voice Activity Detection)
   # Detecta quando há fala e reduz processamento desnecessário
