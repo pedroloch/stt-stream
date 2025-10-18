@@ -10,7 +10,7 @@ packages = [{include = "server"}]
 python = "^3.11"  # Python 3.11+ (3.12 compatível)
 aiohttp = "^3.11.0"  # Latest stable
 aiohttp-cors = "^0.7.0"
-numpy = "^2.2.0"  # Latest numpy 2.x
+numpy = "^1.24.0,<2.0.0"  # numpy 1.x (compatível com NeMo toolkit)
 pyyaml = "^6.0.2"
 
 # Whisper streaming - usar faster-whisper como base
