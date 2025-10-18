@@ -1,7 +1,15 @@
 """
 Streaming Buffer com LocalAgreement Policy
 
-Inspirado no whisper_streaming (UFAL) mas adaptado para nossa arquitetura.
+Implementação CORRETA baseada em whisper_streaming (UFAL):
+https://github.com/ufal/whisper_streaming/blob/main/whisper_online.py
+
+Mudanças principais da implementação anterior:
+- Usa HypothesisBuffer com word-level timestamps
+- Mantém buffer_time_offset para timestamps absolutos
+- Context window otimizado (apenas texto scrolled away)
+- Trimming conservador (buffer > threshold, não imediato)
+- Detecta e pula segmentos de silêncio (no_speech_prob)
 """
 
 import logging
@@ -13,6 +21,7 @@ import numpy as np
 from ..backends.base import WhisperBackend
 from ..constants import DEFAULT_SAMPLE_RATE
 from ..models.result import TranscriptionResult
+from .hypothesis_buffer import HypothesisBuffer, WordWithTimestamp
 
 logger = logging.getLogger(__name__)
 
@@ -21,125 +30,25 @@ logger = logging.getLogger(__name__)
 class BufferConfig:
     """Configuração do buffer de streaming"""
 
-    min_chunk_size: float = 1.0  # segundos
+    min_chunk_size: float = 1.0  # segundos (tamanho mínimo para processar)
     buffer_trimming: str = "segment"  # "segment" ou "sentence"
-    agreement_threshold: int = 2  # número de concordâncias necessárias
-    max_buffer_size: float = 30.0  # segundos (limite de memória)
-
-
-class LocalAgreementPolicy:
-    """
-    LocalAgreement-n Policy
-
-    Confirma transcrição quando n updates consecutivos concordam no prefixo.
-
-    Exemplo (n=2):
-        Update 1: "olá mundo como você"
-        Update 2: "olá mundo como você está"
-        → Confirma: "olá mundo como você" (prefixo comum)
-
-        Update 3: "olá mundo como você está hoje"
-        → Confirma: "olá mundo como você está" (novo prefixo)
-    """
-
-    def __init__(self, n: int = 2):
-        """
-        Args:
-            n: Número de concordâncias consecutivas necessárias
-        """
-        self.n = n
-        self.history: list[str] = []
-        self.last_confirmed: str = ""
-
-    def check(self, new_transcript: str) -> tuple[bool, str | None]:
-        """
-        Verifica se deve confirmar transcrição
-
-        Args:
-            new_transcript: Nova transcrição do buffer atual
-
-        Returns:
-            (should_confirm, confirmed_text)
-            - should_confirm: True se deve confirmar
-            - confirmed_text: Texto confirmado (apenas o novo, não repetir)
-        """
-        # Adicionar ao histórico
-        self.history.append(new_transcript)
-
-        # Manter apenas últimas n transcrições
-        if len(self.history) > self.n:
-            self.history.pop(0)
-
-        # Precisa de n transcrições para confirmar
-        if len(self.history) < self.n:
-            logger.debug(f"LocalAgreement: {len(self.history)}/{self.n} histórico")
-            return False, None
-
-        # Extrair prefixo comum
-        common_prefix = self._longest_common_prefix(self.history)
-
-        # Se prefixo vazio, não confirmar
-        if not common_prefix:
-            logger.debug("LocalAgreement: sem prefixo comum")
-            return False, None
-
-        # Remover texto já confirmado anteriormente
-        new_confirmed = common_prefix[len(self.last_confirmed) :].strip()
-
-        # Se não há texto novo, não confirmar
-        if not new_confirmed:
-            logger.debug("LocalAgreement: sem texto novo")
-            return False, None
-
-        # Confirmar!
-        self.last_confirmed = common_prefix
-        logger.info(f"LocalAgreement: confirmado '{new_confirmed}'")
-        return True, new_confirmed
-
-    def _longest_common_prefix(self, transcripts: list[str]) -> str:
-        """
-        Encontra maior prefixo em comum entre transcrições
-
-        Estratégia: comparar palavra por palavra
-
-        Example:
-            ["olá mundo como você", "olá mundo como você está"]
-            → "olá mundo como você"
-        """
-        if not transcripts:
-            return ""
-
-        # Dividir em palavras
-        words_lists = [t.split() for t in transcripts]
-
-        # Encontrar menor lista
-        min_len = min(len(wl) for wl in words_lists)
-
-        common_words = []
-        for i in range(min_len):
-            word = words_lists[0][i]
-
-            # Verificar se todas concordam nessa palavra
-            if all(wl[i] == word for wl in words_lists):
-                common_words.append(word)
-            else:
-                # Primeira divergência, parar
-                break
-
-        return " ".join(common_words)
-
-    def reset(self):
-        """Reset para nova sessão"""
-        self.history.clear()
-        self.last_confirmed = ""
+    buffer_trimming_sec: float = 15.0  # Trim apenas quando buffer > 15s (conservador!)
+    agreement_threshold: int = 2  # Não usado mais (HypothesisBuffer sempre n=2)
+    max_buffer_size: float = 30.0  # segundos (limite hard de memória)
 
 
 class StreamingBuffer:
     """
-    Buffer inteligente para streaming de áudio
+    Buffer inteligente para streaming de áudio com LocalAgreement
 
-    Acumula chunks, processa com re-transcrição, e usa LocalAgreement
-    para confirmar texto estável.
+    Acumula chunks, re-transcreve com overlap, usa HypothesisBuffer
+    para confirmar apenas texto estável palavra por palavra.
+
+    Diferença chave vs. implementação anterior:
+    - Word-level LocalAgreement (não string-based)
+    - buffer_time_offset tracking (timestamps absolutos)
+    - Context window correto (apenas scrolled away)
+    - Trimming conservador (não imediato)
     """
 
     def __init__(self, backend: WhisperBackend, config: BufferConfig | None = None):
@@ -154,19 +63,27 @@ class StreamingBuffer:
         # Buffer de áudio
         self.audio_buffer = np.array([], dtype=np.float32)
 
-        # LocalAgreement policy
-        self.agreement = LocalAgreementPolicy(n=self.config.agreement_threshold)
+        # ⭐ NOVO: HypothesisBuffer com word-level timestamps
+        self.hypothesis = HypothesisBuffer()
+
+        # ⭐ NOVO: Offset temporal do buffer (tempo absoluto)
+        # Quando fazemos trim, incrementamos este valor
+        # Exemplo: buffer começa em 0s, trim 5s → buffer_time_offset = 5s
+        self.buffer_time_offset: float = 0.0
 
         # Estado
-        self.confirmed_text = ""
-        self.total_duration = 0.0  # segundos de áudio processado
+        self.total_duration = 0.0  # segundos de áudio processado (scrolled away)
         self.chunk_count = 0
 
+        # Lista de palavras confirmadas (para prompt/context)
+        # Formato: [(start, end, word), ...]
+        self.commited_words: list[WordWithTimestamp] = []
+
         logger.info(
-            f"StreamingBuffer criado: "
+            f"StreamingBuffer inicializado: "
             f"min_chunk={self.config.min_chunk_size}s, "
-            f"agreement_n={self.config.agreement_threshold}, "
-            f"trimming={self.config.buffer_trimming}"
+            f"buffer_trimming={self.config.buffer_trimming}, "
+            f"trim_threshold={self.config.buffer_trimming_sec}s"
         )
 
     async def add_chunk(self, audio_chunk: np.ndarray):
@@ -191,54 +108,76 @@ class StreamingBuffer:
         logger.debug(
             f"Chunk #{self.chunk_count} adicionado: "
             f"{len(audio_chunk)/DEFAULT_SAMPLE_RATE:.2f}s, "
-            f"buffer total: {len(self.audio_buffer)/DEFAULT_SAMPLE_RATE:.2f}s"
+            f"buffer total: {len(self.audio_buffer)/DEFAULT_SAMPLE_RATE:.2f}s, "
+            f"buffer_offset: {self.buffer_time_offset:.2f}s"
         )
 
-        # Verificar limite de buffer
+        # Verificar limite de buffer (segurança)
         buffer_duration = len(self.audio_buffer) / DEFAULT_SAMPLE_RATE
         if buffer_duration > self.config.max_buffer_size:
-            logger.warning(f"Buffer muito grande ({buffer_duration:.1f}s), " f"forçando trim")
+            logger.warning(
+                f"Buffer muito grande ({buffer_duration:.1f}s > {self.config.max_buffer_size}s), "
+                f"forçando trim"
+            )
             await self._force_trim()
 
-    def _get_context_window(self, full_text: str, max_words: int = 100) -> str:
+    def _get_prompt(self) -> str:
         """
-        Retorna últimas N palavras para contexto
+        Retorna prompt otimizado para Whisper
 
-        TÉCNICA CRÍTICA: Passar texto confirmado como initial_prompt melhora:
-        - Coerência (nomes próprios, termos técnicos)
-        - Accuracy (-15% WER segundo whisper_streaming)
-        - Capitalização e formatação
+        CRÍTICO: Retorna apenas texto que foi REMOVIDO do buffer (scrolled away).
+        NÃO passa texto que ainda está no buffer!
 
-        Whisper tem limite de ~224 tokens no initial_prompt.
-        Passar muito texto pode degradar performance.
-
-        Args:
-            full_text: Texto completo confirmado
-            max_words: Máximo de palavras no contexto (default: 100)
+        Isso evita desalinhamento entre contexto e áudio.
 
         Returns:
-            Últimas max_words palavras
+            Últimas 200 chars do texto scrolled away
         """
-        if not full_text:
+        # Encontrar palavras que estão FORA do buffer atual
+        # (palavras confirmadas com end_time <= buffer_time_offset)
+        scrolled_away_words = [
+            word for word in self.commited_words
+            if word[1] <= self.buffer_time_offset
+        ]
+
+        if not scrolled_away_words:
+            # Nenhum texto scrolled away ainda
+            # Usar prompt padrão do idioma (se configurado)
+            if self.backend.language and self.backend.language != "auto":
+                language_prompts = {
+                    "pt": "Olá, como vai? Este é um texto em português do Brasil.",
+                    "en": "Hello, how are you? This is a text in English.",
+                    "es": "Hola, ¿cómo estás? Este es un texto en español.",
+                    "fr": "Bonjour, comment allez-vous? Ceci est un texte en français.",
+                }
+                return language_prompts.get(self.backend.language, "")
             return ""
 
-        words = full_text.split()
+        # Concatenar texto
+        full_text = " ".join(w[2] for w in scrolled_away_words)
 
-        if len(words) <= max_words:
-            return full_text
-
-        # Retornar últimas N palavras
-        context = " ".join(words[-max_words:])
+        # Últimas 200 chars apenas (limite do Whisper)
+        prompt = full_text[-200:] if len(full_text) > 200 else full_text
 
         logger.debug(
-            f"Context window: {len(words)} total → {max_words} palavras usadas"
+            f"Prompt ({len(prompt)} chars): '{prompt[:50]}...' "
+            f"({len(scrolled_away_words)} palavras scrolled away)"
         )
 
-        return context
+        return prompt
 
     async def process(self) -> TranscriptionResult | None:
         """
         Processa buffer atual e retorna transcrição (parcial ou final)
+
+        Fluxo:
+        1. Verifica se buffer >= min_chunk_size
+        2. Transcreve buffer completo com prompt correto
+        3. Extrai palavras com timestamps
+        4. HypothesisBuffer.insert() + flush()
+        5. Se confirmou palavras → retorna FINAL (apenas texto novo)
+        6. Senão → retorna PARCIAL (preview)
+        7. Trim se buffer > threshold
 
         Returns:
             TranscriptionResult se tiver resultado, None se buffer muito pequeno
@@ -251,19 +190,18 @@ class StreamingBuffer:
             )
             return None
 
-        # Obter contexto otimizado (últimas N palavras apenas)
-        # IMPORTANTE: Não passar TODO o texto - degrada performance!
-        context = self._get_context_window(self.confirmed_text, max_words=100)
+        # Obter prompt (apenas texto scrolled away!)
+        prompt = self._get_prompt()
 
-        # Transcrever buffer completo com contexto
-        logger.debug(f"Transcrevendo buffer: {duration:.2f}s")
+        # Transcrever buffer completo
         logger.debug(
-            f"Context: '{context[:80]}...' ({len(context.split())} palavras)"
+            f"Transcrevendo buffer: {duration:.2f}s "
+            f"(offset: {self.buffer_time_offset:.2f}s)"
         )
 
         result = await self.backend.transcribe_chunk(
             self.audio_buffer,
-            context=context,  # ⭐ Context otimizado (últimas 100 palavras)
+            context=prompt,  # ⭐ Apenas texto scrolled away
         )
 
         # Se vazio, retornar None
@@ -271,154 +209,184 @@ class StreamingBuffer:
             logger.debug("Transcrição vazia")
             return None
 
-        # LocalAgreement policy
-        should_confirm, confirmed = self.agreement.check(result.text)
+        # ⭐ Extrair palavras com timestamps
+        if not result.words:
+            logger.warning("Backend não retornou words! LocalAgreement não funcionará corretamente.")
+            # Fallback: retornar transcrição sem LocalAgreement
+            return result
 
-        if should_confirm and confirmed:
-            # Texto confirmado!
-            logger.info(f"✅ Confirmado: '{confirmed}'")
+        # Converter para formato HypothesisBuffer: [(start, end, text), ...]
+        words_timestamped = [
+            (w.start, w.end, w.word)
+            for w in result.words
+        ]
 
-            # Atualizar contexto
-            self.confirmed_text += " " + confirmed
-            self.confirmed_text = self.confirmed_text.strip()
+        logger.debug(f"Extraídas {len(words_timestamped)} palavras com timestamps")
 
-            # Trim buffer (remover áudio confirmado)
-            await self._trim_buffer(result)
+        # ⭐ HypothesisBuffer: insert + flush
+        self.hypothesis.insert(words_timestamped, self.buffer_time_offset)
+        confirmed_words = self.hypothesis.flush()
 
-            # Retornar resultado FINAL
+        if confirmed_words:
+            # ✅ TEXTO CONFIRMADO!
+            confirmed_text = " ".join(w[2] for w in confirmed_words)
+
+            logger.info(
+                f"✅ Confirmado ({len(confirmed_words)} palavras): '{confirmed_text}'"
+            )
+
+            # Adicionar ao histórico de palavras confirmadas
+            self.commited_words.extend(confirmed_words)
+
+            # ⭐ Trim conservador: apenas se buffer > threshold
+            buffer_dur = len(self.audio_buffer) / DEFAULT_SAMPLE_RATE
+            if buffer_dur > self.config.buffer_trimming_sec:
+                logger.debug(
+                    f"Buffer grande ({buffer_dur:.2f}s > {self.config.buffer_trimming_sec}s), "
+                    f"fazendo trim"
+                )
+                await self._trim_buffer_conservative()
+
+            # Retornar resultado FINAL (apenas texto novo confirmado!)
             return TranscriptionResult(
-                text=confirmed,
+                text=confirmed_text,
                 is_final=True,
                 confidence=result.confidence,
                 language=result.language,
                 timestamp=datetime.now(),
                 segments=result.segments,  # Manter segmentos originais
+                words=result.words,
             )
-        # Texto ainda não estável, retornar PARCIAL
-        logger.debug(f"⏳ Parcial: '{result.text}'")
-
-        return TranscriptionResult(
-            text=result.text,
-            is_final=False,
-            confidence=result.confidence,
-            language=result.language,
-            timestamp=datetime.now(),
-            segments=result.segments,
-        )
-
-    async def _trim_buffer(self, result: TranscriptionResult):
-        """
-        Remove áudio confirmado do buffer
-
-        Estratégias:
-        - "segment": corta no timestamp do último segmento
-        - "sentence": corta no fim de frase (mais conservador)
-        """
-        if self.config.buffer_trimming == "segment":
-            await self._trim_buffer_segment(result)
-        elif self.config.buffer_trimming == "sentence":
-            await self._trim_buffer_sentence(result)
         else:
-            logger.warning(
-                f"Trimming strategy '{self.config.buffer_trimming}' desconhecida"
+            # ⏳ TEXTO PARCIAL (ainda não estável)
+            logger.debug(f"⏳ Parcial: '{result.text[:50]}...'")
+
+            return TranscriptionResult(
+                text=result.text,
+                is_final=False,
+                confidence=result.confidence,
+                language=result.language,
+                timestamp=datetime.now(),
+                segments=result.segments,
+                words=result.words,
             )
 
-    async def _trim_buffer_segment(self, result: TranscriptionResult):
+    async def _trim_buffer_conservative(self):
         """
-        Corta buffer no timestamp do último segmento confirmado
+        Trim conservador do buffer
+
+        Remove áudio confirmado até o timestamp da última palavra confirmada,
+        mas mantém overlap (não remove tudo imediatamente).
+
+        Estratégia:
+        - Encontrar timestamp da última palavra confirmada
+        - Trim até esse ponto (mas buffer_time_offset será atualizado)
+        - Remover palavras confirmadas que foram scrolled away
         """
-        if not result.segments:
-            logger.debug("Sem segmentos, não é possível trim")
+        if not self.commited_words:
+            logger.debug("Sem palavras confirmadas, não é possível trim")
             return
 
-        # Último segmento
-        last_segment = result.segments[-1]
-        trim_time = last_segment.end
+        # Última palavra confirmada
+        last_confirmed_word = self.commited_words[-1]
+        trim_time = last_confirmed_word[1]  # end time
+
+        # Trim time RELATIVO ao buffer atual
+        trim_time_relative = trim_time - self.buffer_time_offset
+
+        if trim_time_relative <= 0:
+            logger.debug("Trim time inválido, pulando trim")
+            return
 
         # Converter para samples
-        trim_samples = int(trim_time * DEFAULT_SAMPLE_RATE)
+        trim_samples = int(trim_time_relative * DEFAULT_SAMPLE_RATE)
 
-        # Trim (manter apenas áudio após trim_time)
-        if trim_samples < len(self.audio_buffer):
+        if trim_samples >= len(self.audio_buffer):
+            # Trim completo (todo o buffer)
+            removed_duration = len(self.audio_buffer) / DEFAULT_SAMPLE_RATE
+            self.buffer_time_offset += removed_duration
+            self.total_duration += removed_duration
+            self.audio_buffer = np.array([], dtype=np.float32)
+
+            logger.info(
+                f"Buffer completamente trimmed: "
+                f"removido {removed_duration:.2f}s, "
+                f"buffer_offset agora: {self.buffer_time_offset:.2f}s"
+            )
+        else:
+            # Trim parcial
             removed_duration = trim_samples / DEFAULT_SAMPLE_RATE
             self.audio_buffer = self.audio_buffer[trim_samples:]
+            self.buffer_time_offset += removed_duration
             self.total_duration += removed_duration
 
             logger.info(
-                f"Buffer trimmed: removido {removed_duration:.2f}s, "
-                f"restante {len(self.audio_buffer)/DEFAULT_SAMPLE_RATE:.2f}s"
+                f"Buffer trimmed: "
+                f"removido {removed_duration:.2f}s, "
+                f"restante {len(self.audio_buffer)/DEFAULT_SAMPLE_RATE:.2f}s, "
+                f"buffer_offset agora: {self.buffer_time_offset:.2f}s"
             )
-        else:
-            # Trim completo
-            self.total_duration += len(self.audio_buffer) / DEFAULT_SAMPLE_RATE
-            self.audio_buffer = np.array([], dtype=np.float32)
-            logger.info("Buffer completamente trimmed")
 
-    async def _trim_buffer_sentence(self, result: TranscriptionResult):
-        """
-        Corta buffer no fim de frase (ponto, interrogação, exclamação)
-
-        Mais conservador: espera frase completa antes de trim.
-        Latência maior mas menos risco de cortar mid-sentence.
-        """
-        confirmed = self.agreement.last_confirmed
-
-        # Encontrar último caractere de pontuação
-        last_punct_idx = max(
-            confirmed.rfind("."),
-            confirmed.rfind("?"),
-            confirmed.rfind("!"),
-        )
-
-        if last_punct_idx < 0:
-            logger.debug("Sem pontuação, não é possível trim conservador")
-            return
-
-        # Texto até pontuação
-        confirmed_until_punct = confirmed[: last_punct_idx + 1]
-
-        # Estimar timestamp (aproximado via proporção)
-        # TODO: melhorar com word-level timestamps
-        proportion = (
-            len(confirmed_until_punct) / len(result.text) if result.text else 0
-        )
-        buffer_duration = len(self.audio_buffer) / DEFAULT_SAMPLE_RATE
-        trim_time = buffer_duration * proportion
-
-        # Trim
-        trim_samples = int(trim_time * DEFAULT_SAMPLE_RATE)
-        if trim_samples < len(self.audio_buffer):
-            self.audio_buffer = self.audio_buffer[trim_samples:]
-            logger.info(f"Buffer trimmed (sentence): removido {trim_time:.2f}s")
+        # Remover palavras scrolled away do HypothesisBuffer
+        self.hypothesis.pop_commited(self.buffer_time_offset)
 
     async def _force_trim(self):
         """
         Forçar trim quando buffer muito grande (evitar OOM)
+
+        Remove tudo exceto últimos 15s.
         """
-        # Manter apenas últimos 15s
         max_samples = int(15.0 * DEFAULT_SAMPLE_RATE)
         if len(self.audio_buffer) > max_samples:
-            removed = len(self.audio_buffer) - max_samples
+            removed_samples = len(self.audio_buffer) - max_samples
+            removed_duration = removed_samples / DEFAULT_SAMPLE_RATE
+
             self.audio_buffer = self.audio_buffer[-max_samples:]
+            self.buffer_time_offset += removed_duration
+            self.total_duration += removed_duration
+
             logger.warning(
                 f"Buffer forçadamente trimmed: "
-                f"removido {removed/DEFAULT_SAMPLE_RATE:.2f}s"
+                f"removido {removed_duration:.2f}s, "
+                f"buffer_offset agora: {self.buffer_time_offset:.2f}s"
             )
+
+            # Remover palavras scrolled away
+            self.hypothesis.pop_commited(self.buffer_time_offset)
 
     def reset(self):
         """Reset para nova sessão"""
         self.audio_buffer = np.array([], dtype=np.float32)
-        self.agreement.reset()
-        self.confirmed_text = ""
+        self.hypothesis.reset()
+        self.commited_words.clear()
+        self.buffer_time_offset = 0.0
         self.total_duration = 0.0
         self.chunk_count = 0
-        logger.info("StreamingBuffer reset")
+        logger.info("StreamingBuffer resetado")
 
     def get_stats(self) -> dict:
         """Estatísticas do buffer"""
         return {
             "buffer_duration_s": len(self.audio_buffer) / DEFAULT_SAMPLE_RATE,
+            "buffer_time_offset_s": self.buffer_time_offset,
             "total_processed_s": self.total_duration,
             "chunks_received": self.chunk_count,
-            "confirmed_text_len": len(self.confirmed_text),
+            "commited_words_count": len(self.commited_words),
+            "hypothesis_stats": self.hypothesis.get_stats(),
         }
+
+
+# DEPRECATED: Mantido por compatibilidade, mas não usado mais
+class LocalAgreementPolicy:
+    """
+    DEPRECATED: Use HypothesisBuffer diretamente
+
+    Mantido apenas para compatibilidade com imports existentes.
+    """
+
+    def __init__(self, n: int = 2):
+        logger.warning(
+            "LocalAgreementPolicy está deprecated. "
+            "StreamingBuffer agora usa HypothesisBuffer diretamente."
+        )
+        self.n = n

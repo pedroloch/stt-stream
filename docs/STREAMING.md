@@ -1,6 +1,8 @@
 # 🎯 Streaming Inteligente - LocalAgreement Policy
 
-**Status**: ✅ Implementado (FASE 0)
+**Status**: ✅ Implementado e CORRIGIDO (FASE 0)
+
+**Última atualização**: 2025-10-18 - Correção completa baseada em whisper_streaming (UFAL)
 
 Este documento explica como funciona o algoritmo de streaming inteligente implementado no Whisper Stream.
 
@@ -9,13 +11,16 @@ Este documento explica como funciona o algoritmo de streaming inteligente implem
 ## 📋 Índice
 
 1. [Visão Geral](#visão-geral)
-2. [LocalAgreement-n Policy](#localagreement-n-policy)
-3. [StreamingBuffer](#streamingbuffer)
-4. [Context Window Otimizado](#context-window-otimizado)
-5. [Buffer Trimming](#buffer-trimming)
-6. [VAD Chunking](#vad-chunking)
-7. [Exemplos Práticos](#exemplos-práticos)
-8. [Performance](#performance)
+2. [HypothesisBuffer - Implementação Correta](#hypothesisbuffer---implementação-correta)
+3. [LocalAgreement-n Policy](#localagreement-n-policy)
+4. [StreamingBuffer](#streamingbuffer)
+5. [Context Window Otimizado](#context-window-otimizado)
+6. [Buffer Trimming](#buffer-trimming)
+7. [buffer_time_offset - Timestamps Absolutos](#buffer_time_offset---timestamps-absolutos)
+8. [VAD Chunking](#vad-chunking)
+9. [Exemplos Práticos](#exemplos-práticos)
+10. [Performance](#performance)
+11. [Troubleshooting - Bugs Comuns](#troubleshooting---bugs-comuns)
 
 ---
 
@@ -32,6 +37,84 @@ Este documento explica como funciona o algoritmo de streaming inteligente implem
 - ✅ Re-transcreve com overlap
 - ✅ Usa contexto (últimas 100 palavras)
 - ✅ Corta em pausas naturais (VAD)
+
+---
+
+## HypothesisBuffer - Implementação Correta
+
+### O Que É?
+
+**HypothesisBuffer** é o componente central do LocalAgreement-n, baseado 100% na implementação de referência do [whisper_streaming (UFAL)](https://github.com/ufal/whisper_streaming).
+
+**Diferenças da Implementação Anterior (BUGADA):**
+
+| Aspecto | ❌ Anterior (Bugada) | ✅ Atual (Correta) |
+|---------|---------------------|-------------------|
+| **Dados** | Strings completas | Palavras com timestamps `[(start, end, word), ...]` |
+| **Filtro** | Nenhum | Filtra palavras por timestamp (`> last_commited_time`) |
+| **Comparação** | Prefixo de string | Palavra por palavra (word-level) |
+| **Duplicatas** | Não remove | Remove via n-gram matching (1-5 palavras) |
+| **Estados** | 1 (history) | 3 (commited, buffer, new) |
+
+### Como Funciona
+
+```python
+class HypothesisBuffer:
+    def __init__(self):
+        self.commited_in_buffer = []  # Palavras confirmadas (ainda no buffer de áudio)
+        self.buffer = []              # Última transcrição
+        self.new = []                 # Nova transcrição
+        self.last_commited_time = 0.0 # Timestamp da última palavra confirmada
+
+    def insert(self, words, offset):
+        """
+        1. Ajusta timestamps para absolutos (+ offset)
+        2. Filtra palavras > last_commited_time (CRÍTICO!)
+        3. Remove duplicatas via n-gram matching
+        """
+        # Ajustar timestamps
+        words_abs = [(s + offset, e + offset, w) for s, e, w in words]
+
+        # FILTRO CRÍTICO: apenas palavras novas
+        self.new = [w for w in words_abs if w[0] > self.last_commited_time - 0.1]
+
+        # Remover duplicatas
+        self._remove_duplicates()
+
+    def flush(self):
+        """
+        LocalAgreement: compara self.buffer vs self.new palavra por palavra
+
+        Returns:
+            Lista de palavras confirmadas [(start, end, word), ...]
+        """
+        commit = []
+        while self.new and self.buffer:
+            if self.new[0][2] == self.buffer[0][2]:  # Mesmo texto?
+                commit.append(self.new[0])
+                self.last_commited_time = self.new[0][1]  # Atualizar timestamp
+                self.new.pop(0)
+                self.buffer.pop(0)
+            else:
+                break  # Divergência!
+
+        self.buffer = self.new  # Nova vira anterior
+        return commit
+```
+
+### Por Que Isso Corrige os Bugs?
+
+**Bug 1: Alucinações Repetidas**
+- ❌ Antes: Texto confirmado era re-processado sem filtro
+- ✅ Agora: `last_commited_time` filtra palavras já confirmadas
+
+**Bug 2: Timestamps Resetando**
+- ❌ Antes: Sem `buffer_time_offset`, timestamps sempre relativos a 0.0
+- ✅ Agora: `offset` parameter ajusta timestamps para absolutos
+
+**Bug 3: Texto Cortado**
+- ❌ Antes: Comparação de string falhava com alucinações
+- ✅ Agora: Comparação palavra-por-palavra é robusta
 
 ---
 
@@ -245,6 +328,91 @@ whisper:
 
 ---
 
+## buffer_time_offset - Timestamps Absolutos
+
+### O Problema
+
+Quando transcrevemos chunks de áudio, o Whisper retorna timestamps **relativos ao chunk**:
+
+```python
+# Chunk 1 (0-2s de áudio)
+words = [(0.0, 0.5, "hello"), (0.6, 1.0, "world")]
+
+# Chunk 2 (após trim de 1s, áudio agora é 1-3s)
+# MAS timestamps são RELATIVOS ao chunk!
+words = [(0.0, 0.5, "how")]  # ❌ Parece que começa em 0.0s
+```
+
+**Problema:** Não conseguimos saber se uma palavra é nova ou já foi confirmada!
+
+### A Solução: buffer_time_offset
+
+`buffer_time_offset` rastreia o **tempo absoluto** do início do buffer de áudio.
+
+```python
+class StreamingBuffer:
+    def __init__(self):
+        self.audio_buffer = np.array([])
+        self.buffer_time_offset = 0.0  # Tempo absoluto do início do buffer
+
+    async def _trim_buffer_conservative(self):
+        # Remover 1.0s de áudio
+        trim_samples = int(1.0 * SAMPLE_RATE)
+        self.audio_buffer = self.audio_buffer[trim_samples:]
+
+        # ⭐ CRÍTICO: Atualizar offset
+        self.buffer_time_offset += 1.0  # Agora buffer começa em 1.0s (absoluto)
+
+    async def process(self):
+        result = await self.backend.transcribe(self.audio_buffer)
+
+        # Timestamps são RELATIVOS ao buffer
+        # Converter para ABSOLUTOS:
+        self.hypothesis.insert(result.words, offset=self.buffer_time_offset)
+        #                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        #                                     Ajusta timestamps!
+```
+
+### Fluxo Completo
+
+```
+Iteração 1:
+- audio_buffer: [0-2s de áudio]
+- buffer_time_offset: 0.0
+- Transcrição: [(0.0, 0.5, "hello"), (0.6, 1.0, "world")]
+- insert(words, offset=0.0) → timestamps absolutos: [(0.0, 0.5, "hello"), ...]
+
+Iteração 2 (após trim de 1.0s):
+- audio_buffer: [1-3s de áudio] (removeu primeiro 1s)
+- buffer_time_offset: 1.0  ← Atualizado após trim
+- Transcrição: [(0.0, 0.5, "how")] (relativo ao buffer)
+- insert(words, offset=1.0) → timestamps absolutos: [(1.0, 1.5, "how")]
+                        ^^^^
+                        Ajusta timestamps!
+
+HypothesisBuffer:
+- last_commited_time = 1.0
+- Filtro: w[0] > 1.0 - 0.1
+- ✅ "how" (start=1.0) passa!
+- ❌ "hello" (start=0.0) seria filtrado
+```
+
+### Por Que Isso É Crítico?
+
+Sem `buffer_time_offset`:
+- ❌ Timestamps sempre começam em 0.0 após trim
+- ❌ HypothesisBuffer não consegue filtrar palavras antigas
+- ❌ Texto confirmado é re-processado → loop infinito
+- ❌ Modelo recebe contexto desalinhado → alucinações
+
+Com `buffer_time_offset`:
+- ✅ Timestamps absolutos consistentes
+- ✅ HypothesisBuffer filtra corretamente
+- ✅ Contexto alinhado com áudio
+- ✅ Sem loops ou alucinações
+
+---
+
 ## VAD Chunking
 
 ### Silero VAD
@@ -425,8 +593,187 @@ whisper:
 
 ---
 
+## Troubleshooting - Bugs Comuns
+
+### 🐛 Bug: "Muito obrigado" ou Texto Repetindo Infinitamente
+
+**Sintomas:**
+- Mesma transcrição aparece repetidamente
+- Texto não relacionado ao áudio
+- Probabilidades baixas (< 0.3)
+- Timestamps resetando para 0.0
+
+**Causa:**
+1. Buffer trimmed agressivamente (imediato após confirmação)
+2. Sobra apenas silêncio/ruído no buffer
+3. Modelo alucina texto aleatório
+4. LocalAgreement sempre confirma (texto sempre igual)
+5. Loop infinito
+
+**Solução:**
+```yaml
+# server-config.yaml
+whisper:
+  buffer_trimming_sec: 15.0  # ⭐ Trim conservador (não imediato!)
+  vad_threshold: 0.5         # ⭐ Evita processar silêncio
+```
+
+**Validação:**
+```bash
+# Logs devem mostrar:
+[INFO] Buffer trimmed: removido 2.5s, restante 12.5s
+# ✅ Buffer NUNCA deve ficar vazio após confirmação!
+
+# Se ver:
+[INFO] Buffer completamente trimmed
+# ❌ PROBLEMA! Trim agressivo demais
+```
+
+---
+
+### 🐛 Bug: Timestamps Sempre 0.0
+
+**Sintomas:**
+- `segment.start = 0.0` em todas as transcrições
+- Texto cortado ou incompleto
+- Palavras confirmadas reaparecendo
+
+**Causa:**
+- `buffer_time_offset` não está sendo atualizado após trim
+- Timestamps ficam relativos ao buffer (sempre começam em 0.0)
+
+**Solução:**
+```python
+# StreamingBuffer._trim_buffer_conservative()
+async def _trim_buffer_conservative(self):
+    # ...
+    self.buffer_time_offset += removed_duration  # ⭐ CRÍTICO!
+    # ...
+```
+
+**Validação:**
+```python
+# Logs devem mostrar buffer_offset incrementando:
+buffer_offset: 0.00s
+buffer_offset: 2.50s  # ✅ Incrementou após trim
+buffer_offset: 5.20s  # ✅ Continua incrementando
+```
+
+---
+
+### 🐛 Bug: Texto Cortado ("to bastante" ao invés de "gosto bastante")
+
+**Sintomas:**
+- Primeiras sílabas/palavras cortadas
+- Texto parece começar no meio da frase
+
+**Causa:**
+1. Backend não retornou `words` (apenas segments)
+2. HypothesisBuffer não consegue fazer LocalAgreement
+3. Fallback retorna transcrição sem filtragem
+
+**Solução:**
+```python
+# Verificar se backend retorna words:
+result = await backend.transcribe_chunk(audio)
+assert result.words is not None  # ⭐ Deve ter words!
+
+# faster_whisper_backend.py deve ter:
+word_timestamps=True  # ⭐ Obrigatório!
+```
+
+**Validação:**
+```bash
+# Logs devem mostrar:
+Extraídas 25 palavras com timestamps
+✅ Confirmado (3 palavras): 'olá mundo como'
+
+# Se ver:
+Backend não retornou words! LocalAgreement não funcionará
+# ❌ PROBLEMA! Backend não configurado corretamente
+```
+
+---
+
+### 🐛 Bug: Alucinações em Silêncio
+
+**Sintomas:**
+- Texto aleatório quando não há fala
+- `no_speech_prob` alto (> 0.9)
+- Probabilidades baixas
+
+**Causa:**
+- Segmentos de silêncio não estão sendo filtrados
+- Modelo força transcrição mesmo sem fala
+
+**Solução:**
+```python
+# faster_whisper_backend.py
+if segment.no_speech_prob > 0.9:
+    logger.debug(f"Pulando segmento de silêncio: '{segment.text}'")
+    continue  # ⭐ Não processar!
+```
+
+**Validação:**
+```bash
+# Logs devem mostrar:
+Pulando segmento de silêncio (no_speech_prob=0.95): 'Muito obrigado'
+
+# Se não ver esse log em silêncio:
+# ❌ PROBLEMA! Filtro de no_speech não está ativo
+```
+
+---
+
+### 🐛 Bug: Context Desalinhado (WER Alto)
+
+**Sintomas:**
+- WER (Word Error Rate) alto
+- Transcrições inconsistentes
+- Nomes próprios errados
+
+**Causa:**
+- Contexto inclui texto que não está no buffer de áudio
+- Modelo tenta alinhar contexto com áudio inexistente
+
+**Solução:**
+```python
+def _get_prompt(self):
+    # ⭐ Apenas palavras FORA do buffer (scrolled away)!
+    scrolled_away = [w for w in self.commited_words
+                     if w[1] <= self.buffer_time_offset]
+
+    # ❌ ERRADO: usar ALL commited_words
+    # ✅ CORRETO: filtrar por buffer_time_offset
+```
+
+**Validação:**
+```bash
+# Logs devem mostrar:
+Prompt (127 chars): 'olá mundo...' (15 palavras scrolled away)
+
+# Se ver muitas palavras quando buffer foi trimmed recentemente:
+# ❌ PROBLEMA! Contexto inclui texto ainda no buffer
+```
+
+---
+
+### ✅ Checklist de Correção
+
+- [ ] `buffer_trimming_sec >= 15.0` (trimming conservador)
+- [ ] `vad_threshold >= 0.5` (evita silêncio)
+- [ ] `word_timestamps=True` no backend
+- [ ] `no_speech_prob > 0.9` filtrado
+- [ ] `buffer_time_offset` atualizado após trim
+- [ ] Context usa apenas `scrolled_away_words`
+- [ ] HypothesisBuffer filtra por `last_commited_time`
+- [ ] Tests unitários passando (`pytest tests/unit/test_hypothesis_buffer.py`)
+
+---
+
 **Documentação criada em**: 2025-10-18
-**Versão**: 1.0 (FASE 0)
+**Versão**: 2.0 (FASE 0 - CORRIGIDO)
 **Autor**: Claude Code + Pedro
+**Referência**: [whisper_streaming (UFAL)](https://github.com/ufal/whisper_streaming)
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)

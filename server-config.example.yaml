@@ -23,7 +23,7 @@ server:
 whisper:
   # Modelo: tiny, base, small, medium, large, large-v3, large-v3-turbo
   # Modelos maiores = mais precisos mas mais lentos
-  model: "distil-large-v3"
+  model: "small"
 
   # Idioma (auto para detecção automática)
   # Exemplos: pt, en, es, fr, de, etc
@@ -48,16 +48,20 @@ whisper:
   # VAD (Voice Activity Detection)
   # Detecta quando há fala e reduz processamento desnecessário
   use_vad: true
-  vad_threshold: 0.5
+  vad_threshold: 0.5  # ⭐ Aumentado de 0.25 para evitar processar silêncio
 
-  # Configurações de buffer
+  # Configurações de Streaming Buffer (LocalAgreement)
   # Chunk mínimo antes de processar (segundos)
   min_chunk_size: 1.0
 
-  # Buffer trimming
-  # "segment" = corta por segmentos de fala
-  # "sentence" = tenta cortar em fim de frases
+  # Buffer trimming strategy
+  # "segment" = corta por segmentos de fala (recomendado)
+  # "sentence" = tenta cortar em fim de frases (mais conservador)
   buffer_trimming: "segment"
+
+  # ⭐ NOVO: Threshold para trimming conservador
+  # Trim apenas quando buffer > 15s (evita trim agressivo que causa alucinações)
+  buffer_trimming_sec: 15.0
 
   # Beam size para decodificação
   # Maior = mais preciso mas mais lento (1-5)

@@ -185,6 +185,7 @@ class TranscriptionResult:
         language: Código do idioma detectado (obrigatório)
         timestamp: Momento da transcrição (obrigatório)
         segments: Lista de segmentos com timestamps (opcional - WORD_TIMESTAMPS)
+        words: Lista flat de palavras com timestamps (opcional - extraído de segments)
         speaker: ID do speaker (opcional - SPEAKER_DIARIZATION)
         translation: Traduções para outros idiomas (opcional - TRANSLATION)
         processing_time_ms: Tempo de processamento em milissegundos (opcional)
@@ -215,6 +216,7 @@ class TranscriptionResult:
 
     # Campos opcionais (dependem de capability)
     segments: list[Segment] | None = None
+    words: list[Word] | None = None  # Word-level timestamps (flattened from all segments)
     speaker: str | None = None  # "SPEAKER_00", "SPEAKER_01", etc
     translation: dict[str, str] | None = None  # {"en": "...", "es": "..."}
 

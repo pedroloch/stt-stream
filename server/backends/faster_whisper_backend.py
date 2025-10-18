@@ -263,10 +263,20 @@ class FasterWhisperBackend(WhisperBackend):
 
             # Converter segmentos para formato normalizado
             normalized_segments = []
+            all_words = []  # Lista flat de todas as palavras (para HypothesisBuffer)
+
             for seg in segments_list:
                 # Converter words se existirem
                 words = None
                 if hasattr(seg, "words") and seg.words:
+                    # Filtrar segmentos de silêncio (no_speech_prob > 0.9)
+                    # CRÍTICO: Evita processar/confirmar alucinações!
+                    if hasattr(seg, "no_speech_prob") and seg.no_speech_prob > 0.9:
+                        self.logger.debug(
+                            f"Pulando segmento de silêncio (no_speech_prob={seg.no_speech_prob:.2f}): '{seg.text}'"
+                        )
+                        continue
+
                     words = [
                         Word(
                             word=w.word,
@@ -276,6 +286,9 @@ class FasterWhisperBackend(WhisperBackend):
                         )
                         for w in seg.words
                     ]
+
+                    # Adicionar à lista flat
+                    all_words.extend(words)
 
                 normalized_segments.append(
                     Segment(
@@ -294,6 +307,7 @@ class FasterWhisperBackend(WhisperBackend):
                 language=info.language,
                 timestamp=datetime.now(),
                 segments=normalized_segments,
+                words=all_words,  # ⭐ Lista flat para HypothesisBuffer
             )
 
 
@@ -309,6 +323,24 @@ class FasterWhisperBackend(WhisperBackend):
             result = await self.transcribe_chunk(audio_chunk)
             if result.text:
                 yield result
+
+    def ts_words(self, result: TranscriptionResult) -> list[tuple[float, float, str]]:
+        """
+        Extrai palavras com timestamps no formato para HypothesisBuffer
+
+        Args:
+            result: Resultado de transcrição
+
+        Returns:
+            Lista de tuplas (start, end, word_text)
+        """
+        if not result.words:
+            return []
+
+        return [
+            (word.start, word.end, word.word)
+            for word in result.words
+        ]
 
     async def cleanup(self) -> None:
         """Limpa recursos"""

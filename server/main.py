@@ -26,7 +26,6 @@ from .websocket_handler import WebSocketHandler
 from .whisper_processor import WhisperProcessor
 
 
-
 class WhisperServer:
     """
     Servidor Whisper Stream

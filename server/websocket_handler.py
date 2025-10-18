@@ -74,8 +74,9 @@ class WebSocketHandler:
 
         buffer_config = BufferConfig(
             min_chunk_size=self.config.whisper.min_chunk_size,
-            agreement_threshold=2,  # n=2 concordâncias
             buffer_trimming=self.config.whisper.buffer_trimming,
+            buffer_trimming_sec=getattr(self.config.whisper, 'buffer_trimming_sec', 15.0),  # Novo parâmetro
+            agreement_threshold=2,  # Deprecated mas mantido por compatibilidade
         )
         self.streaming_buffers[client_id] = StreamingBuffer(
             backend=self.processor.backend,
@@ -171,8 +172,9 @@ class WebSocketHandler:
                 self.logger.warning(f"[{client_id}] Buffer não encontrado, criando novo")
                 buffer_config = BufferConfig(
                     min_chunk_size=self.config.whisper.min_chunk_size,
-                    agreement_threshold=2,
                     buffer_trimming=self.config.whisper.buffer_trimming,
+                    buffer_trimming_sec=getattr(self.config.whisper, 'buffer_trimming_sec', 15.0),
+                    agreement_threshold=2,  # Deprecated
                 )
                 buffer = StreamingBuffer(
                     backend=self.processor.backend,

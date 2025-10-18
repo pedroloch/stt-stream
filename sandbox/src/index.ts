@@ -28,10 +28,9 @@ import {
   type ErrorMessage,
   type MessageHistoryItem,
   type TranscriptionMessage,
-
 } from "./types";
 
-import config from '../config.example.yaml'
+import config from "../config.example.yaml";
 
 class WhisperStreamClient {
   private config: Config;
@@ -51,10 +50,7 @@ class WhisperStreamClient {
   // Texto confirmado acumulado (LocalAgreement incremental)
   private confirmedText = "";
 
-  // Texto parcial atual
-  private currentPartialText = "";
-
-  // Histórico de mensagens (apenas para quebras de linha)
+  // Histórico de mensagens
   private messageHistory: MessageHistoryItem[] = [];
   private maxHistory = 50;
 
@@ -145,7 +141,9 @@ class WhisperStreamClient {
     console.log(headerColor.bold("🎤 WHISPER STREAM CLIENT"));
     console.log(
       chalk.gray(
-        `Server: ${this.config.server.url} | Debug: ${this.debugMode ? "ON" : "OFF"}`
+        `Server: ${this.config.server.url} | Debug: ${
+          this.debugMode ? "ON" : "OFF"
+        }`
       )
     );
 
@@ -161,8 +159,9 @@ class WhisperStreamClient {
         statusLine += chalk.yellow("🔄 Conectando...");
         break;
       case ConnectionStatus.Reconnecting:
-        statusLine +=
-          chalk.yellow(`🔄 Reconectando (${this.reconnectAttempts})...`);
+        statusLine += chalk.yellow(
+          `🔄 Reconectando (${this.reconnectAttempts})...`
+        );
         break;
       case ConnectionStatus.Disconnected:
         statusLine += chalk.red("❌ Desconectado");
@@ -196,37 +195,58 @@ class WhisperStreamClient {
   }
 
   private renderHistory() {
-    // Não renderizar histórico antigo
-    // Apenas mostrar a linha atual inline
-    if (this.confirmedText || this.currentPartialText) {
-      this.renderCurrentLine();
-    } else {
+    // Mostrar últimas N mensagens
+    const recentMessages = this.messageHistory.slice(-this.maxHistory);
+
+    if (recentMessages.length === 0) {
       console.log(
-        chalk.gray(
-          "Aguardando transcrições... Fale no microfone para começar."
-        )
+        chalk.gray("Aguardando transcrições... Fale no microfone para começar.")
       );
       console.log();
+    } else {
+      recentMessages.forEach((msg) => this.renderMessage(msg));
     }
   }
 
-  private renderCurrentLine() {
-    // Limpar linha e renderizar texto confirmado + parcial inline
-    process.stdout.write("\r" + " ".repeat(150) + "\r");
+  private renderMessage(msg: MessageHistoryItem) {
+    const time = msg.timestamp.toLocaleTimeString();
+    const confStr = msg.confidence
+      ? ` ${chalk.gray(`(${(msg.confidence * 100).toFixed(0)}%)`)}`
+      : "";
 
-    let output = "";
+    // Word wrap
+    const wrapped = this.wordWrap(
+      msg.text,
+      this.config.display.word_wrap_width || 80
+    );
 
-    // Texto confirmado (verde, normal)
-    if (this.confirmedText) {
-      output += chalk.green(this.confirmedText);
-    }
+    const color = msg.is_final
+      ? this.getChalkColor(this.config.display.colors.final)
+      : this.getChalkColor(this.config.display.colors.partial);
 
-    // Texto parcial (cinza, muted)
-    if (this.currentPartialText) {
-      output += chalk.dim.gray(" " + this.currentPartialText);
-    }
+    const icon = msg.is_final ? "" : "🎤 ";
 
-    process.stdout.write(output);
+    wrapped.forEach((line, i) => {
+      if (i === 0) {
+        // Primeira linha: timestamp + texto
+        if (this.config.display.show_timestamps) {
+          console.log(
+            chalk.gray(`[${time}] `) +
+              icon +
+              color(line) +
+              (i === 0 ? confStr : "")
+          );
+        } else {
+          console.log(icon + color(line) + (i === 0 ? confStr : ""));
+        }
+      } else {
+        // Linhas seguintes: indentadas
+        const indent = this.config.display.show_timestamps
+          ? " ".repeat(11 + icon.length)
+          : " ".repeat(icon.length);
+        console.log(indent + color(line));
+      }
+    });
   }
 
   private wordWrap(text: string, width: number): string[] {
@@ -255,23 +275,20 @@ class WhisperStreamClient {
     return lines.length > 0 ? lines : [text];
   }
 
-  private updateCurrentLine() {
-    // Renderizar linha atual (confirmado + parcial inline)
-    process.stdout.write("\r" + " ".repeat(150) + "\r");
+  private updatePartialTranscription(text: string) {
+    // Limpar linha anterior
+    process.stdout.write("\r" + " ".repeat(100) + "\r");
 
-    let output = "";
+    // Mostrar nova transcrição parcial
+    const wrapped = this.wordWrap(
+      text,
+      this.config.display.word_wrap_width || 80
+    );
+    const color = this.getChalkColor(this.config.display.colors.partial);
 
-    // Texto confirmado (verde)
-    if (this.confirmedText) {
-      output += chalk.green(this.confirmedText);
+    if (wrapped.length > 0) {
+      process.stdout.write("🎤 " + color(wrapped[0]));
     }
-
-    // Texto parcial (cinza muted)
-    if (this.currentPartialText) {
-      output += chalk.dim.gray(" " + this.currentPartialText);
-    }
-
-    process.stdout.write(output);
   }
 
   // ============================================
@@ -295,7 +312,9 @@ class WhisperStreamClient {
       this.log("error", "Não foi possível conectar ao servidor");
       console.log(chalk.red(`   URL: ${this.config.server.health_url}`));
       console.log(
-        chalk.yellow("\n💡 Certifique-se de que o servidor Python está rodando:")
+        chalk.yellow(
+          "\n💡 Certifique-se de que o servidor Python está rodando:"
+        )
       );
       console.log(
         chalk.gray("   python -m server.main --config server-config.yaml")
@@ -319,6 +338,12 @@ class WhisperStreamClient {
       });
 
       this.ws.on("message", (data: Buffer) => {
+        // Debug mode: mostrar JSON bruto primeiro
+        if (this.debugMode) {
+          console.log("Received message (raw):", data.toString() + "\n");
+        }
+
+        // Processar mensagem normalmente
         this.handleMessage(data);
       });
 
@@ -366,7 +391,10 @@ class WhisperStreamClient {
           break;
 
         default:
-          this.logDebug(`Unknown message type: ${(message as any).type}`, message);
+          this.logDebug(
+            `Unknown message type: ${(message as any).type}`,
+            message
+          );
       }
     } catch (error) {
       this.log("error", `Erro ao processar mensagem: ${error}`);
@@ -400,35 +428,29 @@ class WhisperStreamClient {
       // ✅ TRANSCRIÇÃO FINAL (confirmada pelo LocalAgreement)
       // LocalAgreement envia apenas o NOVO texto confirmado (incremental)
 
-      const newConfirmed = text.trim();
+      // Limpar linha parcial antes de adicionar final
+      process.stdout.write("\r" + " ".repeat(100) + "\r");
 
       // Acumular texto confirmado
-      this.confirmedText += (this.confirmedText ? " " : "") + newConfirmed;
+      this.confirmedText += (this.confirmedText ? " " : "") + text.trim();
 
-      // Limpar parcial (já foi confirmado)
-      this.currentPartialText = "";
+      const historyItem: MessageHistoryItem = {
+        timestamp: new Date(timestamp),
+        text: text.trim(), // Mostrar apenas o novo pedaço
+        is_final: true,
+        confidence,
+      };
 
-      // Verificar se termina com ponto final (quebrar linha)
-      if (newConfirmed.endsWith(".") || newConfirmed.endsWith("!") || newConfirmed.endsWith("?")) {
-        // Finalizar linha atual
-        process.stdout.write("\r" + " ".repeat(150) + "\r");
-        console.log(chalk.green(this.confirmedText));
+      this.messageHistory.push(historyItem);
 
-        // Resetar para nova linha
-        this.confirmedText = "";
+      // Renderizar só a nova mensagem confirmada
+      this.renderMessage(historyItem);
 
-        this.logDebug("Line break on sentence end");
-      } else {
-        // Continuar na mesma linha
-        this.updateCurrentLine();
-      }
-
-      this.logDebug(`Confirmed text: "${this.confirmedText}"`);
-
+      this.logDebug(`Confirmed text accumulated: "${this.confirmedText}"`);
     } else if (this.config.display.show_partial) {
       // ⏳ TRANSCRIÇÃO PARCIAL (preview, não confirmada ainda)
-      this.currentPartialText = text.trim();
-      this.updateCurrentLine();
+      // Mostra o que está sendo processado no buffer
+      this.updatePartialTranscription(text);
     }
   }
 
@@ -527,9 +549,7 @@ class WhisperStreamClient {
         error.message.includes("ENOENT") ||
         error.message.includes("Executable not found")
       ) {
-        console.log(
-          chalk.yellow("\n💡 sox não está instalado. Instale com:")
-        );
+        console.log(chalk.yellow("\n💡 sox não está instalado. Instale com:"));
         console.log(chalk.gray("   macOS: brew install sox"));
         console.log(chalk.gray("   Linux: sudo apt-get install sox"));
         console.log(
